@@ -16,7 +16,7 @@ Nothing changes until you've checked the preview, and every rename can be undone
 [![Build](https://github.com/FiTH-g1gGLe/Rennix/actions/workflows/build.yml/badge.svg)](https://github.com/FiTH-g1gGLe/Rennix/actions/workflows/build.yml)
 [![Latest release](https://img.shields.io/github/v/release/FiTH-g1gGLe/Rennix?label=latest&color=2DD4BF)](https://github.com/FiTH-g1gGLe/Rennix/releases)
 [![Downloads](https://img.shields.io/github/downloads/FiTH-g1gGLe/Rennix/total?label=downloads&color=2DD4BF&logo=github)](https://github.com/FiTH-g1gGLe/Rennix/releases)
-[![Licence: MIT](https://img.shields.io/badge/licence-MIT-informational)](LICENSE)
+[![Licence: MIT](docs/badges/licence-mit.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Data: TMDB](https://img.shields.io/badge/data-TMDB-01B4E4)](https://www.themoviedb.org/)
 
