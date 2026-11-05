@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="196" height="52" viewBox="0 0 196 52" role="img" aria-label="Portable zip">
+  <rect x="1" y="1" width="194" height="50" rx="11" fill="#161920" stroke="#343B48" stroke-width="2"/>
+  <g fill="none" stroke="#E7E9EE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="translate(20 14)">
+    <path d="M3 4a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+  </g>
+  <text x="54" y="32.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#E7E9EE">Portable .zip</text>
+</svg>

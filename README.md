@@ -9,13 +9,14 @@
 Drop in a messy folder. Rennix works out what every file is, shows you the new names, and sorts everything in one click.
 Nothing changes until you've checked the preview, and every rename can be undone.
 
-[![Download for Windows](https://img.shields.io/badge/Download-Windows-2DD4BF?style=for-the-badge&logo=windows&logoColor=0E1014)](https://github.com/FiTH-g1gGLe/Rennix/releases/latest)
-[![Portable version](https://img.shields.io/badge/Portable-zip-1A1E26?style=for-the-badge&logo=files&logoColor=white)](https://github.com/FiTH-g1gGLe/Rennix/releases/latest)
+<a href="https://github.com/FiTH-g1gGLe/Rennix/releases/latest"><img src="docs/badges/download-windows.svg" alt="Download for Windows" height="52"></a>
+&nbsp;
+<a href="https://github.com/FiTH-g1gGLe/Rennix/releases/latest"><img src="docs/badges/download-portable.svg" alt="Portable zip" height="52"></a>
 
 [![Build](https://github.com/FiTH-g1gGLe/Rennix/actions/workflows/build.yml/badge.svg)](https://github.com/FiTH-g1gGLe/Rennix/actions/workflows/build.yml)
 [![Latest release](https://img.shields.io/github/v/release/FiTH-g1gGLe/Rennix?label=latest&color=2DD4BF)](https://github.com/FiTH-g1gGLe/Rennix/releases)
 [![Downloads](https://img.shields.io/github/downloads/FiTH-g1gGLe/Rennix/total?label=downloads&color=2DD4BF&logo=github)](https://github.com/FiTH-g1gGLe/Rennix/releases)
-[![Licence: MIT](https://img.shields.io/github/license/FiTH-g1gGLe/Rennix?color=informational)](LICENSE)
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-informational)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Data: TMDB](https://img.shields.io/badge/data-TMDB-01B4E4)](https://www.themoviedb.org/)
 
