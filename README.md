@@ -1,10 +1,8 @@
 <div align="center">
 
-<img src="assets/rennix.png" alt="Rennix logo" width="112">
+<img src="assets/banner.png" alt="Rennix: rename and organise your movies and TV shows" width="100%">
 
-# Rennix
-
-**Rename and organise your movies and TV shows.**
+<br>
 
 Drop in a messy folder. Rennix works out what every file is, shows you the new names, and sorts everything in one click.
 Nothing changes until you've checked the preview, and every rename can be undone.
