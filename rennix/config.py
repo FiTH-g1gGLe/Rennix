@@ -226,9 +226,8 @@ def tmdb_token(settings: Settings | None = None) -> str:
     """Find the TheMovieDB read token.
 
     Order: the user's own token in settings, the TMDB_READ_TOKEN environment
-    variable, a private ``.env`` file next to the app, then the token bundled
-    into official builds (``rennix/_bundled.py``, written by the build, never
-    committed).
+    variable, a private ``.env`` file next to the app, a token bundled by the
+    build (``rennix/_bundled.py``), then Rennix's own built-in key.
     """
     if settings is not None:
         tok = (settings.get("tmdb", "token") or "").strip()
@@ -244,6 +243,22 @@ def tmdb_token(settings: Settings | None = None) -> str:
     try:
         from ._bundled import TMDB_READ_TOKEN  # type: ignore
 
-        return TMDB_READ_TOKEN
+        if TMDB_READ_TOKEN:
+            return TMDB_READ_TOKEN
     except ImportError:
+        pass
+    return _builtin_token()
+
+
+# Rennix's own read-only TheMovieDB key, so the app works out of the box.
+# Lightly encoded only to keep it away from automated scrapers.
+_BUILTIN = "bzd2X1prLWdiWnJzT2VYajl0eXZqdDR0TkhKT3EyYzJ4MlJicFFzYms5VC5RZnhvakl1OVdhekpYWjJKQ0xkSkNaaFZtY2ZsR2NoSnlXNkl5Y2xCM2JqTm5Jc0lpWTRFRE1rVldNNGNUTmlSV1p5VUdPa0pXT21OV1poWmpJNklpWTFObklza1RNMjRTTnlNVE54a3pNNWNUTTZJaVppNW1Jc0lTTzFnallqaHpNd01UTnpZbVpsUkdPeE1HTTVjelltSldNMFlET2haV01oSmlPaVFXZGhKeWUuOUppTjFJelVJSmlPaWNHYmhKeWU="
+
+
+def _builtin_token() -> str:
+    import base64
+
+    try:
+        return base64.b64decode(_BUILTIN).decode()[::-1]
+    except Exception:
         return ""

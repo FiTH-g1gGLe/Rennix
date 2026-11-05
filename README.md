@@ -9,12 +9,12 @@
 Drop in a messy folder. Rennix works out what every file is, shows you the new names, and sorts everything in one click.
 Nothing changes until you've checked the preview, and every rename can be undone.
 
-[![Download for Windows](https://img.shields.io/badge/Download-Windows-2DD4BF?style=for-the-badge&logo=windows&logoColor=0E1014)](https://github.com/FiTH-g1gGLe/Rennix/releases/tag/latest-test)
-[![Portable version](https://img.shields.io/badge/Portable-zip-1A1E26?style=for-the-badge&logo=files&logoColor=white)](https://github.com/FiTH-g1gGLe/Rennix/releases/tag/latest-test)
+[![Download for Windows](https://img.shields.io/badge/Download-Windows-2DD4BF?style=for-the-badge&logo=windows&logoColor=0E1014)](https://github.com/FiTH-g1gGLe/Rennix/releases/latest)
+[![Portable version](https://img.shields.io/badge/Portable-zip-1A1E26?style=for-the-badge&logo=files&logoColor=white)](https://github.com/FiTH-g1gGLe/Rennix/releases/latest)
 
 [![Build](https://github.com/FiTH-g1gGLe/Rennix/actions/workflows/build.yml/badge.svg)](https://github.com/FiTH-g1gGLe/Rennix/actions/workflows/build.yml)
-[![Latest release](https://img.shields.io/github/v/release/FiTH-g1gGLe/Rennix?include_prereleases&label=latest&color=2DD4BF)](https://github.com/FiTH-g1gGLe/Rennix/releases)
-[![Downloads](https://img.shields.io/github/downloads/FiTH-g1gGLe/Rennix/total?color=2DD4BF)](https://github.com/FiTH-g1gGLe/Rennix/releases)
+[![Latest release](https://img.shields.io/github/v/release/FiTH-g1gGLe/Rennix?label=latest&color=2DD4BF)](https://github.com/FiTH-g1gGLe/Rennix/releases)
+[![Downloads](https://img.shields.io/github/downloads/FiTH-g1gGLe/Rennix/total?label=downloads&color=2DD4BF&logo=github)](https://github.com/FiTH-g1gGLe/Rennix/releases)
 [![Licence: MIT](https://img.shields.io/github/license/FiTH-g1gGLe/Rennix?color=informational)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Data: TMDB](https://img.shields.io/badge/data-TMDB-01B4E4)](https://www.themoviedb.org/)
@@ -66,8 +66,8 @@ Nothing changes until you've checked the preview, and every rename can be undone
 
 | Version | Best for |
 | --- | --- |
-| [**Rennix Setup** (.exe)](https://github.com/FiTH-g1gGLe/Rennix/releases/tag/latest-test) | Most people. Installs for your user only, no admin rights needed |
-| [**Portable** (.zip)](https://github.com/FiTH-g1gGLe/Rennix/releases/tag/latest-test) | Running from a USB stick or without installing. Keeps its settings beside the app |
+| [**Rennix Setup** (.exe)](https://github.com/FiTH-g1gGLe/Rennix/releases/latest) | Most people. Installs for your user only, no admin rights needed |
+| [**Portable** (.zip)](https://github.com/FiTH-g1gGLe/Rennix/releases/latest) | Running from a USB stick or without installing. Keeps its settings beside the app |
 
 > [!TIP]
 > Windows may show **"Windows protected your PC"** for new apps. Click **More info → Run anyway**.
@@ -117,7 +117,7 @@ No. Version 1 only changes names and locations. Moves between drives are copied,
 <details>
 <summary><b>Do I need a TheMovieDB account?</b></summary>
 
-No. Official builds include a key. If you run from source, add your own free key (see below).
+No. Rennix has its own key built in. You can add your own in **Settings → Matching** if you ever want to.
 </details>
 
 <details>
@@ -126,21 +126,17 @@ No. Official builds include a key. If you run from source, add your own free key
 No. It only looks up titles on TheMovieDB and checks GitHub for updates. Nothing about you or your files is collected.
 </details>
 
-## 🛠️ Running from source
+## 🛠️ For developers: running from source
 
-You need Python 3.11 or newer.
+> You **don't** need any of this to use Rennix. Just [download it](https://github.com/FiTH-g1gGLe/Rennix/releases/latest) and double-click.
+
+This section is for people who want to change the code. You need Python 3.11 or newer.
 
 ```bash
 git clone https://github.com/FiTH-g1gGLe/Rennix.git
 cd Rennix
 pip install -r requirements.txt
 python run_rennix.py
-```
-
-Add a TheMovieDB key in a `.env` file next to `run_rennix.py`, or paste it into **Settings → Matching**:
-
-```
-TMDB_READ_TOKEN=your-api-read-access-token
 ```
 
 Run the tests with `python -m pytest`. Every push is tested on Windows, Mac and Linux, and Windows builds are produced automatically by [GitHub Actions](https://github.com/FiTH-g1gGLe/Rennix/actions).

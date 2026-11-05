@@ -100,14 +100,18 @@ jobs:
           files: |
             dist/Rennix-Setup-*.exe
             dist/Rennix-*-Windows-Portable.zip
-      - name: Publish "latest test build" (pushes to main)
+      - name: Publish this version as a release (once per version, so download counts stick)
         if: github.ref == 'refs/heads/main'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete latest-test --cleanup-tag --yes || true
-          gh release create latest-test --prerelease --target "$GITHUB_SHA" \
-            --title "Latest test build (${{ steps.ver.outputs.version }})" \
-            --notes "Built automatically from the latest code. For testing: rename copies of your files first." \
-            dist/Rennix-Setup-*.exe dist/Rennix-*-Windows-Portable.zip
+          V="${{ steps.ver.outputs.version }}"
+          gh release delete latest-test --cleanup-tag --yes 2>/dev/null || true
+          if gh release view "v$V" >/dev/null 2>&1; then
+            echo "Release v$V already exists; this build is in the Actions artifacts. Bump the version to publish a new release."
+          else
+            gh release create "v$V" --target "$GITHUB_SHA" --title "Rennix $V" \
+              --notes-file CHANGELOG.md \
+              dist/Rennix-Setup-*.exe dist/Rennix-*-Windows-Portable.zip
+          fi
