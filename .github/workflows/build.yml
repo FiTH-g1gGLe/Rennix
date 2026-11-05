@@ -100,3 +100,14 @@ jobs:
           files: |
             dist/Rennix-Setup-*.exe
             dist/Rennix-*-Windows-Portable.zip
+      - name: Publish "latest test build" (pushes to main)
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest-test --cleanup-tag --yes || true
+          gh release create latest-test --prerelease --target "$GITHUB_SHA" \
+            --title "Latest test build (${{ steps.ver.outputs.version }})" \
+            --notes "Built automatically from the latest code. For testing: rename copies of your files first." \
+            dist/Rennix-Setup-*.exe dist/Rennix-*-Windows-Portable.zip
