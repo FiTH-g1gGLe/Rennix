@@ -94,6 +94,13 @@ def _friendly(exc: BaseException, action: str = "move") -> str:
     return str(exc)
 
 
+def _same_file(a: Path, b: Path) -> bool:
+    try:
+        return os.path.samefile(a, b) and str(a).lower() == str(b).lower()
+    except OSError:
+        return False
+
+
 def _rank(path_or_res: str) -> int:
     for res, rank in RES_RANK.items():
         if res in path_or_res.lower():
@@ -295,6 +302,11 @@ class Renamer:
         if not src.exists() and not src.is_symlink():
             raise FileNotFoundError(str(src))
         op.created_dirs = self._make_parents(dst)
+        if dst.exists() and _same_file(src, dst):
+            # only the letter case changes (the matrix.mkv -> The Matrix.mkv) on a
+            # case-insensitive drive: a plain rename handles it
+            os.rename(src, dst)
+            return
         if dst.exists():
             if op.replace and send2trash is not None:
                 send2trash(str(dst))
@@ -484,6 +496,11 @@ class Renamer:
             src, dst = Path(od["src"]), Path(od["dst"])
             try:
                 if od["action"] == "move":
+                    if src.exists() and _same_file(src, dst):
+                        os.rename(dst, src)         # undo a case-only rename
+                        od["state"] = "undone"
+                        undone += 1
+                        continue
                     if src.exists():
                         raise FileExistsError(str(src))
                     src.parent.mkdir(parents=True, exist_ok=True)

@@ -662,7 +662,7 @@ function drawFE() {
       <button data-fk="episode" class="${fe.kind === "episode" ? "on" : ""}" style="flex:1;justify-content:center">${icon("tv")}TV</button></div>
     <div class="sec-label">Templates</div>${builtins.map(tplBtn).join("")}
     <div class="sec-label" style="margin-top:6px">My formats</div>${mine.map(tplBtn).join("") || `<div class="muted" style="font-size:13px;padding:0 8px">None yet.</div>`}
-    <button class="tpl" id="fe-new" style="border-style:dashed;color:var(--text-2)">${icon("plus")} New format</button>`;
+    <button class="tpl" id="fe-new" style="border-style:dashed;color:var(--text-2);flex-direction:row;align-items:center;gap:6px">${icon("plus")} New format</button>`;
   for (const b of $$("[data-fk]", sideEl)) b.onclick = () => { fe.kind = b.dataset.fk; fe.text = (S.formats[fe.name] || S.formats.Plex)[fe.kind]; drawFE(); };
   for (const b of $$("[data-tpl]", sideEl)) b.onclick = () => { fe.name = b.dataset.tpl; fe.text = S.formats[fe.name][fe.kind]; drawFE(); };
   $("#fe-new", sideEl).onclick = () => { fe.name = ""; drawFE(); $("#fe-name")?.focus(); };

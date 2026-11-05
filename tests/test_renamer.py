@@ -183,3 +183,13 @@ def test_undo_refuses_odd_ids(tmp_path):
     paths = Paths(tmp_path / "app")
     with pytest.raises(ValueError):
         Renamer(paths, {}).undo("../../etc/passwd")
+
+
+def test_case_only_rename(tmp_path):
+    dl, s, items, paths = make(tmp_path, ["the matrix (1999).mkv"])
+    r = Renamer(paths, s)
+    out = r.execute(build_plan(items, Formats(), s))
+    assert out["done"] == 1, out
+    assert files_under(dl) == ["The Matrix (1999).mkv"]
+    r.undo(out["batch_id"])
+    assert files_under(dl) == ["the matrix (1999).mkv"]

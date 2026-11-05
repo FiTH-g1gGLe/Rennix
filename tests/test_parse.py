@@ -174,3 +174,13 @@ def test_guessit_path(name, kind, title, monkeypatch):
     if title:
         names = [p.title] + [t for t, _ in p.alt_titles]
         assert any(normalize(n) == normalize(title) for n in names)
+
+
+@pytest.mark.parametrize("path,generic", [
+    ("/home/me/Downloads/movie.mkv", True),
+    ("/home/me/Downloads/01.mkv", True),
+    ("/home/me/Downloads/300 (2006).mkv", False),
+    ("/home/me/Downloads/1917.mkv", False),
+])
+def test_common_folder_names_are_not_titles(path, generic):
+    assert parse_path(path, engine="builtin").generic is generic

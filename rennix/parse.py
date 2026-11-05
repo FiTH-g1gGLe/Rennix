@@ -65,7 +65,9 @@ COUNTRIES = {"us": "US", "uk": "GB", "au": "AU", "nz": "NZ", "ca": "CA"}
 
 GENERIC_NAMES = re.compile(
     r"^(movie|film|video|vid|clip|untitled|new|file|main|feature|title\d*|"
-    r"vid[_ -]?\d+|img[_ -]?\d+|dsc[_ -]?\d+|mvi[_ -]?\d+|\d{1,6})$",
+    r"vid[_ -]?\d+|img[_ -]?\d+|dsc[_ -]?\d+|mvi[_ -]?\d+|\d{1,2}|\d{5,6}|"
+    r"downloads?|movies|films|videos|tv|tv_shows|shows|series|media|completed?|incoming|"
+    r"torrents?|new_folder|desktop|documents|dl|temp|tmp|plex|jellyfin|emby|kodi|library)$",
     re.I,
 )
 
