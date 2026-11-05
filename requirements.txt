@@ -1,0 +1,12 @@
+# Runtime
+pywebview>=5.0
+requests>=2.31
+platformdirs>=4.0
+guessit>=3.8
+rapidfuzz>=3.0
+pymediainfo>=6.0
+send2trash>=1.8
+
+# Development
+pytest>=8.0
+pyinstaller>=6.0

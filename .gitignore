@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Rennix
+rennix/_bundled.py
+*.rennix-part
