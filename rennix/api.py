@@ -20,7 +20,11 @@ import webbrowser
 from pathlib import Path
 from typing import Any
 
+import functools
+import platform
+
 from . import __version__, mediainfo
+from .diagnostics import BUFFER, CODES, friendly, log_event, report, setup_logging
 from .config import Paths, Settings, tmdb_token
 from .identify import Identified, Identifier
 from .naming import (PRESETS, SAMPLE_FACTS, TOKENS, FormatError, Formats, facts_for,
@@ -31,15 +35,8 @@ from .scanner import VIDEO_EXTS, scan
 from .store import Cache, Learned
 from .tmdb import TMDbClient, TMDbError
 
-log = logging.getLogger("rennix")
+log = logging.getLogger("rennix.app")
 GITHUB_REPO = "FiTH-g1gGLe/Rennix"
-
-
-def _setup_logging(paths: Paths) -> None:
-    handler = logging.FileHandler(paths.logs / "rennix.log", encoding="utf-8")
-    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
-    log.addHandler(handler)
-    log.setLevel(logging.INFO)
 
 
 def _human_size(n: int) -> str:
@@ -57,7 +54,7 @@ class Api:
 
     def __init__(self, paths: Paths | None = None, source=None):
         self._paths = paths or Paths()
-        _setup_logging(self._paths)
+        setup_logging(self._paths.logs)
         self._settings = Settings(self._paths)
         self._formats = Formats(self._paths.formats_file)
         self._cache = Cache(self._paths.cache_db)
@@ -69,6 +66,10 @@ class Api:
         self._source = source          # tests inject a fake TheMovieDB here
         self._busy = threading.Lock()
         self._id_offset = 0
+        log.info("Rennix %s starting on %s (Python %s, %s)", __version__, platform.platform(),
+                 platform.python_version(), "packaged" if getattr(sys, "frozen", False) else "from source",
+                 extra={"ctx": {"mediainfo": mediainfo.available(), "data": str(self._paths.data),
+                                "key": "custom" if self._settings.get("tmdb", "token") else "built-in"}})
 
     # ------------------------------------------------------------------ plumbing
     def _emit(self, event: str, payload: Any) -> None:
@@ -219,6 +220,11 @@ class Api:
             rows = [{"id": f.id, "name": f.name, "path": str(f.path), "folder": str(f.path.parent),
                      "size_text": _human_size(f.size), "status": "pending", "category": f.category}
                     for f in files]
+            for p, m in res.errors:
+                code = "RNX-S001" if "not found" in str(m).lower() or "no such" in str(m).lower() else "RNX-S002"
+                log_event(log, logging.WARNING, code, f"Couldn't read: {m}", path=str(p))
+            log.info("Scan found %d new video(s), skipped %d sample(s), %d junk file(s)", len(files),
+                     len(res.skipped), len(res.junk), extra={"ctx": {"paths": paths}})
             self._emit("scanned", {"files": rows, "skipped": len(res.skipped),
                                    "errors": [{"path": str(p), "message": m} for p, m in res.errors],
                                    "junk": len(res.junk)})
@@ -237,8 +243,8 @@ class Api:
             ident.identify(files, progress)
             self._emit("done", {"count": len(files), "previews": self._previews()})
         except Exception as exc:
-            log.error("scan failed: %s", traceback.format_exc())
-            self._emit("error", {"message": f"Something went wrong while scanning: {exc}"})
+            log_event(log, logging.ERROR, "RNX-X001", f"Scanning stopped: {exc}", exc, paths=paths)
+            self._emit("error", {"message": friendly("RNX-X001", "Something went wrong while scanning.")})
         finally:
             self._busy.release()
 
@@ -337,8 +343,8 @@ class Api:
             summary["removed_ids"] = sorted(done_ids)
             self._emit("renamed", summary)
         except Exception as exc:
-            log.error("rename failed: %s", traceback.format_exc())
-            self._emit("error", {"message": f"Renaming stopped: {exc}. Nothing was lost; see History."})
+            log_event(log, logging.ERROR, "RNX-X001", f"Renaming stopped: {exc}", exc)
+            self._emit("error", {"message": friendly("RNX-X001", "Renaming stopped. Nothing was lost; see History.")})
         finally:
             self._busy.release()
 
@@ -358,8 +364,8 @@ class Api:
                     target = p.parent / "_Rennix leftovers"
                     target.mkdir(exist_ok=True)
                     os.rename(p, target / p.name)
-            except Exception:
-                log.warning("junk handling failed for %s", p)
+            except Exception as exc:
+                log_event(log, logging.WARNING, "RNX-R099", f"Couldn't tidy a junk file: {exc}", path=str(p))
         self._junk = []
 
     def export_plan(self, include_amber: bool = False) -> dict:
@@ -399,6 +405,47 @@ class Api:
 
     def recover(self, mode: str = "finish") -> dict:
         return Renamer(self._paths, self._settings.data).recover("reverse" if mode == "reverse" else "finish")
+
+    # ------------------------------------------------------------------ console and diagnostics
+    def get_logs(self, last_id: int = 0) -> dict:
+        return {"entries": BUFFER.since(int(last_id or 0)), "counts": BUFFER.counts()}
+
+    def clear_logs(self) -> dict:
+        BUFFER.clear()
+        return {"ok": True}
+
+    def error_codes(self) -> dict:
+        return {k: {"what": v[0], "fix": v[1]} for k, v in CODES.items()}
+
+    def log_js(self, level: str, message: str, detail: str = "") -> bool:
+        """Errors from the app window end up in the same log as everything else."""
+        lvl = {"error": logging.ERROR, "warning": logging.WARNING}.get(level, logging.INFO)
+        logging.getLogger("rennix.window").log(lvl, str(message)[:500],
+                                               extra={"code": "RNX-W001" if lvl >= logging.ERROR else "",
+                                                      "detail": str(detail)[:4000]})
+        return True
+
+    def diagnostics_report(self) -> str:
+        busy = not self._busy.acquire(blocking=False)
+        if not busy:
+            self._busy.release()
+        return report(__version__, self._settings.data, {
+            "MediaInfo": "available" if mediainfo.available() else "not available",
+            "Files loaded": len(self._order),
+            "Busy": "yes" if busy else "no",
+            "Data folder": str(self._paths.data),
+        })
+
+    def save_report(self) -> dict:
+        if self._window is None:
+            return {"saved": False}
+        import webview
+        res = self._window.create_file_dialog(webview.SAVE_DIALOG, save_filename="rennix-report.txt")
+        if not res:
+            return {"saved": False}
+        target = res if isinstance(res, str) else res[0]
+        Path(target).write_text(self.diagnostics_report(), encoding="utf-8")
+        return {"saved": True, "path": target}
 
     # ------------------------------------------------------------------ formats
     def list_formats(self) -> dict:
@@ -497,6 +544,23 @@ class Api:
             return {"available": False, "message": "You're on the latest version."}
         except Exception:
             return {"available": False, "message": "Couldn't check for updates right now."}
+
+
+def _guarded(fn):
+    @functools.wraps(fn)
+    def wrapper(self, *args, **kwargs):
+        try:
+            return fn(self, *args, **kwargs)
+        except Exception as exc:
+            log_event(log, logging.ERROR, "RNX-X001", f"{fn.__name__} failed: {exc}", exc,
+                      args=[str(a)[:200] for a in args])
+            raise
+    return wrapper
+
+
+for _name, _fn in list(vars(Api).items()):
+    if callable(_fn) and not _name.startswith("_") and _name not in ("get_logs", "log_js"):
+        setattr(Api, _name, _guarded(_fn))
 
 
 def _version_tuple(v: str) -> tuple:

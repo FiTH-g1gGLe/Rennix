@@ -16,6 +16,7 @@ Stages (see the plan's "Identification engine" section):
 
 from __future__ import annotations
 
+import logging
 import math
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -24,10 +25,13 @@ from pathlib import Path
 from typing import Callable
 
 from . import mediainfo
+from .diagnostics import friendly, log_event
 from .parse import Parsed, parse_path
 from .scanner import MediaFile
 from .textnorm import best_similarity, normalize, similarity
 from .tmdb import Source, TMDbError, poster_url
+
+log = logging.getLogger("rennix.identify")
 
 THRESHOLDS = {
     # green needs confidence >= first number and a lead over 2nd place >= second number
@@ -285,8 +289,12 @@ class Identifier:
         except TMDbError as exc:
             item.status, item.message = "red", exc.friendly
             item.reasons = ["📡 " + exc.friendly]
+            log_event(log, logging.WARNING, exc.code, "Lookup failed for a file", file=str(item.file.path))
         except Exception as exc:  # never let one file stop the batch
-            item.status, item.message = "red", f"Something went wrong identifying this file ({exc})."
+            item.status, item.message = "red", friendly("RNX-I001")
+            log_event(log, logging.ERROR, "RNX-I001", f"Identifying a file failed: {exc}", exc,
+                      file=str(item.file.path), parsed=item.parsed.title)
+        self._log_result(item)
         return [item]
 
     def _safe_group(self, group: list[Identified]) -> list[Identified]:
@@ -296,10 +304,29 @@ class Identifier:
             for it in group:
                 it.status, it.message = "red", exc.friendly
                 it.reasons = ["📡 " + exc.friendly]
+            log_event(log, logging.WARNING, exc.code, "Lookup failed for a show",
+                      show=group[0].parsed.title, files=len(group))
         except Exception as exc:
             for it in group:
-                it.status, it.message = "red", f"Something went wrong identifying this show ({exc})."
+                it.status, it.message = "red", friendly("RNX-I001")
+            log_event(log, logging.ERROR, "RNX-I001", f"Identifying a show failed: {exc}", exc,
+                      show=group[0].parsed.title, files=[str(i.file.path) for i in group][:20])
+        for it in group:
+            self._log_result(it)
         return group
+
+    @staticmethod
+    def _log_result(it: Identified) -> None:
+        m = it.match
+        what = ""
+        if m is not None:
+            what = f"{m.title} ({m.year})" + (f" S{m.season:02d}E{m.episodes[0]:02d}" if m.kind == "episode" and m.season is not None and m.episodes else "")
+        level = logging.INFO if it.status != "red" else logging.WARNING
+        log.log(level, "%s → %s %s", it.file.name, it.status.upper(), what or it.message,
+                extra={"ctx": {"confidence": round(it.confidence, 2), "reasons": it.reasons[:6],
+                               "parsed": {"title": it.parsed.title, "year": it.parsed.year,
+                                          "season": it.parsed.season, "episodes": it.parsed.episodes},
+                               "candidates": [f"{c.title} ({c.year}) {c.confidence:.2f}" for c in it.candidates[:4]]}})
 
     # ------------------------------------------------------------- preparation
     def _prepare(self, files: list[MediaFile]) -> list[Identified]:
@@ -399,7 +426,7 @@ class Identifier:
         hyps = self._movie_hypotheses(p)
         if not hyps:
             it.status = "red"
-            it.message = "No title in the file name. Search for it manually."
+            it.message = friendly("RNX-I002")
             it.reasons = ["🔍 The name has no title to search for"]
             return
 
@@ -423,7 +450,7 @@ class Identifier:
 
         if not found:
             it.status = "red"
-            it.message = "No match found on TheMovieDB. Try searching by title."
+            it.message = friendly("RNX-I003")
             it.reasons = ["🔍 Nothing on TheMovieDB matched this name"]
             return
 
@@ -639,7 +666,7 @@ class Identifier:
             hyps = self._show_hypotheses(group)
             if not hyps:
                 for it in group:
-                    it.status, it.message = "red", "No show name found. Search for it manually."
+                    it.status, it.message = "red", friendly("RNX-I002")
                     it.reasons = ["🔍 The name has no show title to search for"]
                 return
             for title, year in hyps:
@@ -650,7 +677,7 @@ class Identifier:
                     candidates.setdefault(r["id"], self._candidate_from_tv(r))
             if not candidates:
                 for it in group:
-                    it.status, it.message = "red", "No show found on TheMovieDB. Try searching by title."
+                    it.status, it.message = "red", friendly("RNX-I003")
                     it.reasons = ["🔍 Nothing on TheMovieDB matched this show name"]
                 return
 
@@ -751,7 +778,7 @@ class Identifier:
             elif it.status == "amber":
                 it.message = "Please check this match"
             elif it.status == "red":
-                it.message = ("This episode number doesn't exist in the matched show."
+                it.message = (friendly("RNX-I004")
                               if not exists else "No confident match. Pick one or search.")
 
     # ------------------------------------------------------------- manual choice

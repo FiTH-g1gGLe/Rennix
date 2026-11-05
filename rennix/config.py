@@ -110,6 +110,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "reduce_motion": False,
         "first_run_done": False,
         "media_server": "plex",     # plex | jellyfin | emby | kodi | none
+        "show_console": True,       # the 🐞 console button (on for alpha and beta builds)
     },
     "library": {
         "movies_dir": "",
@@ -182,8 +183,12 @@ class Settings:
             try:
                 saved = json.loads(paths.settings_file.read_text(encoding="utf-8"))
                 self.data = _deep_merge(DEFAULT_SETTINGS, saved)
-            except (OSError, ValueError):
+            except (OSError, ValueError) as exc:
                 # A damaged settings file never stops the app; keep a copy for support.
+                import logging
+                from .diagnostics import log_event
+                log_event(logging.getLogger("rennix.config"), logging.ERROR, "RNX-C001", exc=exc,
+                          file=str(paths.settings_file))
                 try:
                     paths.settings_file.replace(paths.settings_file.with_suffix(".broken.json"))
                 except OSError:

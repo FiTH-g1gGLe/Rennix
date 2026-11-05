@@ -143,13 +143,13 @@ const handlers = {
       toast(`🎉 ${s.done} file${s.done === 1 ? "" : "s"} renamed${s.companions ? ` (+${s.companions} extra file${s.companions === 1 ? "" : "s"})` : ""}`,
         { action: { label: "Undo", fn: () => undoBatch(s.batch_id) }, timeout: 10000 });
     }
-    for (const e of s.errors || []) toast(`❌ ${esc(fileName(e.src))}: ${esc(e.message)}`, { timeout: 9000 });
+    for (const e of s.errors || []) toast(`❌ ${esc(fileName(e.src))}: ${esc(e.message)}`, { timeout: 9000, action: { label: "Details", fn: openConsole } });
     for (const p of (s.problems || []).filter((p) => p.level === "conflict" || p.level === "error")) {
       toast(`⚔️ ${esc(nameOf(p.file_id))}: ${esc(p.message)}`, { timeout: 9000 });
     }
     refreshStats();
   },
-  error(d) { setStatus(""); S.busy = false; toast(`❌ ${esc(d.message)}`, { timeout: 10000 }); },
+  error(d) { setStatus(""); S.busy = false; toast(`❌ ${esc(d.message)}`, { timeout: 10000, action: { label: "Details", fn: openConsole } }); },
 };
 
 const fileName = (p) => (p || "").split(/[\\/]/).pop();
@@ -545,7 +545,7 @@ function settingsPane(sec) {
     case "integrations": return soon("Right-click “Rename with Rennix” in Explorer, and refreshing Plex or Jellyfin after renaming.");
     case "network": return `<div class="card">${sw("network", "offline", "Offline mode", "Only use matches Rennix has already looked up.", "✈️")}
       <div class="srow"><div><div class="lbl">🌐 Proxy</div><div class="d">Only if your network needs one, e.g. http://host:8080</div></div><input type="text" data-text="network.proxy" value="${esc(s.network.proxy)}" style="width:240px"></div></div>`;
-    case "advanced": return `<div class="card">
+    case "advanced": return `<div class="card">${sw("general", "show_console", "Show the console button", "The 🐞 button opens a live log with error codes. Handy for reporting problems.", "🐞")}</div><div class="card">
       <div class="srow"><div><div class="lbl">🗄️ Match cache</div><div class="d">Saved lookups make repeat scans instant.</div></div><button class="btn small" id="clear-cache">${icon("trash")}Clear cache</button></div>
       <div class="srow"><div><div class="lbl">🪵 Log files</div><div class="d">Send these to support if something goes wrong.</div></div><button class="btn small" id="open-logs">${icon("open")}Open log folder</button></div></div>`;
     case "privacy": return `<div class="card">${sw("privacy", "crash_reports", "Send crash reports", "Off by default. Rennix doesn't send anything about you or your files.", "🔒")}</div>`;
@@ -596,6 +596,7 @@ function drawPane() {
     const [sec, key] = b.dataset.sw.split(".");
     await saveSettings({ [sec]: { [key]: !S.settings[sec][key] } });
     b.setAttribute("aria-checked", String(!!S.settings[sec][key]));
+    if (key === "show_console") setConsoleVisible(S.settings.general.show_console);
     if (sec === "library" || sec === "naming") refreshPreviews();
   };
   for (const b of $$("[data-choice]", pane)) b.onclick = async () => {
@@ -841,14 +842,133 @@ async function refreshStats() {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") { if ($("#overlay")) closeModal(); else if (S.selected) closeSide(); return; }
   const typing = /INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || "");
-  if (e.ctrlKey && e.key === "Enter") { e.preventDefault(); doRename(); }
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "l") { e.preventDefault(); toggleConsole(); }
+  else if (e.ctrlKey && e.key === "Enter") { e.preventDefault(); doRename(); }
   else if (e.ctrlKey && e.key.toLowerCase() === "z" && !typing && S.lastBatch) { e.preventDefault(); undoBatch(S.lastBatch); S.lastBatch = null; }
   else if (e.key === "?" && !typing) {
     const o = openModal(`<div class="modal-head"><h2>⌨️ Keyboard shortcuts</h2><button class="btn small" id="k-close">Close</button></div>
-      <div class="modal-body pad">${[["Ctrl + Enter", "Rename"], ["Ctrl + Z", "Undo the last rename"], ["Enter", "Open the selected row"], ["Esc", "Close a panel or window"], ["?", "Show these shortcuts"]]
+      <div class="modal-body pad">${[["Ctrl + Enter", "Rename"], ["Ctrl + Z", "Undo the last rename"], ["Ctrl + Shift + L", "Open the console"], ["Enter", "Open the selected row"], ["Esc", "Close a panel or window"], ["?", "Show these shortcuts"]]
         .map(([k, d]) => `<div style="display:flex;justify-content:space-between"><span>${d}</span><span class="mono">${k}</span></div>`).join("")}</div>`, "narrow");
     $("#k-close", o).onclick = closeModal;
   }
+});
+
+
+// ------------------------------------------------------------------ console (alpha and beta builds)
+const CON = { open: false, last: 0, entries: [], level: "all", query: "", codes: null, timer: null, seenErrors: 0, expanded: new Set() };
+
+function setConsoleVisible(show) {
+  $("#btn-console").classList.toggle("hidden", !show);
+  if (!show && CON.open) closeConsole();
+}
+
+async function pollLogs() {
+  if (!api) return;
+  try {
+    const r = await api.get_logs(CON.last);
+    if (r.entries.length) {
+      CON.entries.push(...r.entries);
+      if (CON.entries.length > 3000) CON.entries.splice(0, CON.entries.length - 3000);
+      CON.last = r.entries[r.entries.length - 1].id;
+    }
+    const newErrors = Math.max(0, r.counts.errors - CON.seenErrors);
+    const badge = $("#console-badge");
+    badge.textContent = newErrors > 99 ? "99+" : String(newErrors);
+    badge.classList.toggle("hidden", CON.open || newErrors === 0);
+    if (CON.open) { CON.seenErrors = r.counts.errors; if (r.entries.length) drawLogs(true); }
+  } catch (e) { /* the window may be closing */ }
+}
+
+function logRow(e) {
+  const fix = e.code && CON.codes && CON.codes[e.code] ? CON.codes[e.code].fix : "";
+  const ctx = e.ctx && Object.keys(e.ctx).length ? JSON.stringify(e.ctx, null, 2) : "";
+  const detail = [fix ? `💡 ${fix}` : "", ctx, e.detail].filter(Boolean).join("\n\n");
+  const open = CON.expanded.has(e.id);
+  return `<div class="log ${esc(e.level)}${detail ? " has-detail" : ""}" data-log="${e.id}">
+    <span class="t">${esc(e.time)}</span><span class="lv">${esc(e.level === "CRITICAL" ? "CRASH" : e.level)}</span>
+    <span class="cd">${esc(e.code || "")}</span><span class="wh">${esc(e.where)}</span><span class="msg">${esc(e.message)}${detail && !open ? ' <span class="muted">▸</span>' : ""}</span>
+    ${open && detail ? `<div class="det">${fix ? `<span class="fix">💡 ${esc(fix)}</span>\n\n` : ""}${esc([ctx, e.detail].filter(Boolean).join("\n\n"))}</div>` : ""}</div>`;
+}
+
+function drawLogs(stick) {
+  const body = $("#console-body");
+  if (!body) return;
+  const atBottom = body.scrollTop + body.clientHeight >= body.scrollHeight - 30;
+  const q = CON.query.toLowerCase();
+  const rows = CON.entries.filter((e) => {
+    if (CON.level === "errors" && !["ERROR", "CRITICAL"].includes(e.level)) return false;
+    if (CON.level === "warnings" && !["ERROR", "CRITICAL", "WARNING"].includes(e.level)) return false;
+    if (CON.level === "info" && e.level === "DEBUG") return false;
+    return !q || `${e.message} ${e.code} ${e.where} ${e.detail} ${JSON.stringify(e.ctx)}`.toLowerCase().includes(q);
+  });
+  body.innerHTML = rows.slice(-1500).map(logRow).join("") || `<div style="padding:16px" class="muted">Nothing here yet. Everything Rennix does shows up in this console.</div>`;
+  if (!stick || atBottom) body.scrollTop = body.scrollHeight;
+}
+
+async function openConsole() {
+  CON.open = true;
+  if (!CON.codes) CON.codes = await api.error_codes();
+  const el = $("#console");
+  el.classList.remove("hidden");
+  el.innerHTML = `<div class="console-head">
+      <b>${icon("bug")}Console</b>
+      <div class="seg" id="con-level">
+        ${[["all", "Everything"], ["info", "Info"], ["warnings", "Warnings"], ["errors", "Errors"]].map(([k, l]) => `<button data-lv="${k}" class="${CON.level === k ? "on" : ""}">${l}</button>`).join("")}
+      </div>
+      <input type="search" id="con-q" placeholder="Search logs or codes (RNX-R001)" value="${esc(CON.query)}" aria-label="Search logs">
+      <span class="spacer"></span>
+      <button class="btn small primary" id="con-copy" data-tip="${tip("📋 Copy report", "Copies your version, system, settings (keys hidden) and recent log.", "Paste it to Claude to get the problem fixed fast.")}">${icon("copy")}Copy report</button>
+      <button class="btn small" id="con-save" data-tip="${tip("💾 Save report", "Saves the same report as a text file.")}">${icon("file")}Save</button>
+      <button class="btn small" id="con-folder" data-tip="${tip("🪵 Log files", "Opens the folder with the full log files.")}">${icon("folder")}Logs</button>
+      <button class="btn small" id="con-clear" data-tip="${tip("🧹 Clear", "Clears this view. The log files are kept.")}">${icon("trash")}</button>
+      <button class="icon-btn" id="con-close" aria-label="Close console" style="width:36px;height:36px">${icon("x")}</button>
+    </div><div class="console-body" id="console-body"></div>`;
+  for (const b of $$("#con-level button", el)) b.onclick = () => { CON.level = b.dataset.lv; $$("#con-level button", el).forEach((x) => x.classList.toggle("on", x === b)); drawLogs(false); };
+  $("#con-q", el).oninput = (e) => { CON.query = e.target.value; drawLogs(false); };
+  $("#con-copy", el).onclick = copyReport;
+  $("#con-save", el).onclick = async () => { const r = await api.save_report(); if (r.saved) toast(`💾 Report saved to ${esc(fileName(r.path))}`); };
+  $("#con-folder", el).onclick = () => api.open_logs();
+  $("#con-clear", el).onclick = async () => { await api.clear_logs(); CON.entries = []; CON.last = 0; CON.seenErrors = 0; drawLogs(false); };
+  $("#con-close", el).onclick = closeConsole;
+  $("#console-body", el).onclick = (e) => {
+    const row = e.target.closest(".log.has-detail");
+    if (!row || window.getSelection().toString()) return;
+    const id = Number(row.dataset.log);
+    CON.expanded.has(id) ? CON.expanded.delete(id) : CON.expanded.add(id);
+    drawLogs(true);
+  };
+  $("#console-badge").classList.add("hidden");
+  drawLogs(false);
+  restartPolling();
+}
+
+function closeConsole() { CON.open = false; $("#console").classList.add("hidden"); restartPolling(); }
+function toggleConsole() { CON.open ? closeConsole() : openConsole(); }
+function restartPolling() { clearInterval(CON.timer); CON.timer = setInterval(pollLogs, CON.open ? 1000 : 4000); pollLogs(); }
+
+async function copyReport() {
+  const text = await api.diagnostics_report();
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; } catch { /* fall back below */ }
+  if (!ok) {
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { ok = document.execCommand("copy"); } catch { ok = false; }
+    ta.remove();
+  }
+  toast(ok ? "📋 Report copied. Paste it to Claude to get help." : "⚠️ Couldn't copy. Use Save instead.");
+}
+
+$("#btn-console").onclick = toggleConsole;
+
+// Errors in the window itself are logged with a code too
+window.addEventListener("error", (e) => {
+  try { api && api.log_js("error", e.message || "Window error", `${e.filename || ""}:${e.lineno || ""}:${e.colno || ""}\n${(e.error && e.error.stack) || ""}`); } catch { /* ignore */ }
+});
+window.addEventListener("unhandledrejection", (e) => {
+  const msg = (e.reason && (e.reason.message || String(e.reason))) || "Unknown problem";
+  try { api && api.log_js("error", `Action failed: ${msg}`, (e.reason && e.reason.stack) || ""); } catch { /* ignore */ }
+  toast(`❌ Something went wrong (RNX-W001). Details are in the console.`, { action: { label: "Open console", fn: openConsole }, timeout: 9000 });
 });
 
 // ------------------------------------------------------------------ start up
@@ -857,6 +977,8 @@ async function init() {
   const st = await api.get_state();
   S.settings = st.settings; S.formats = st.formats; S.tokens = st.tokens; S.version = st.version; S.stats = st.stats; S.platform = st.platform;
   applyLook();
+  setConsoleVisible(S.settings.general.show_console !== false);
+  restartPolling();
   setMode(S.settings.general.default_mode || "auto");
   fillFormatSelects();
   $("#chk-amber").checked = !S.settings.safety.skip_amber;

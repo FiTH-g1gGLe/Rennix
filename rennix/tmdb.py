@@ -9,10 +9,13 @@ This product uses the TMDB API but is not endorsed or certified by TMDB.
 
 from __future__ import annotations
 
+import logging
 import re
 import threading
 import time
 from typing import Any, Protocol
+
+from .diagnostics import friendly as _friendly, log_event
 
 try:
     import requests
@@ -23,12 +26,16 @@ API = "https://api.themoviedb.org/3"
 IMAGE = "https://image.tmdb.org/t/p/"
 
 
-class TMDbError(Exception):
-    """A lookup failed; ``friendly`` is safe to show in the app."""
+log = logging.getLogger("rennix.tmdb")
 
-    def __init__(self, message: str, friendly: str = ""):
+
+class TMDbError(Exception):
+    """A lookup failed; ``friendly`` is safe to show in the app and ends with its code."""
+
+    def __init__(self, message: str, friendly: str = "", code: str = "RNX-T001"):
         super().__init__(message)
-        self.friendly = friendly or "Couldn't reach TheMovieDB. Check your internet connection."
+        self.code = code
+        self.friendly = _friendly(code, friendly)
 
 
 class Source(Protocol):
@@ -85,17 +92,19 @@ class TMDbClient:
             stale = self.cache.get(key, allow_stale=True) if self.cache is not None else None
             if stale is not None:
                 return stale
-            raise TMDbError("offline", "Offline mode is on and this hasn't been looked up before.")
+            raise TMDbError("offline", code="RNX-T006")
         if self.session is None:
-            raise TMDbError("requests missing", "Rennix is missing a component (requests).")
+            raise TMDbError("requests missing", "Rennix is missing a component (requests).", code="RNX-X001")
         if not self.token:
-            raise TMDbError("no token", "No TheMovieDB key is set. Add one in Settings → Matching.")
+            raise TMDbError("no token", code="RNX-T007")
 
         query = dict(params)
         if re.fullmatch(r"[0-9a-f]{32}", self.token):
             query["api_key"] = self.token
 
         last_error = ""
+        last_code = "RNX-T001"
+        started = time.time()
         for attempt in range(4):
             with self._pause_lock:
                 wait = self._pause_until - time.time()
@@ -106,10 +115,19 @@ class TMDbClient:
                     resp = self.session.get(API + path, params=query, timeout=self.timeout)
                 except requests.RequestException as exc:  # connection dropped, DNS, timeout
                     last_error = str(exc)
+                    last_code = "RNX-T001"
+                    log_event(log, logging.WARNING, "RNX-T001", f"Connection problem (try {attempt + 1} of 4)",
+                              path=path, error=str(exc)[:300])
                     time.sleep(1.5 * (2 ** attempt))
                     continue
             if resp.status_code == 200:
-                data = resp.json()
+                try:
+                    data = resp.json()
+                except ValueError as exc:
+                    log_event(log, logging.ERROR, "RNX-T008", path=path, body=resp.text[:300])
+                    raise TMDbError("bad json", code="RNX-T008") from exc
+                log.debug("GET %s %s (%.0f ms)", path, {k: v for k, v in params.items() if k != "language"},
+                          (time.time() - started) * 1000)
                 if self.cache is not None:
                     self.cache.set(key, data)
                 return data
@@ -117,22 +135,31 @@ class TMDbClient:
                 retry = float(resp.headers.get("Retry-After", "2") or 2)
                 with self._pause_lock:
                     self._pause_until = max(self._pause_until, time.time() + retry)
-                last_error = "rate limited"
+                log_event(log, logging.INFO, "RNX-T004", f"Asked to slow down; waiting {retry:.0f}s", path=path)
+                last_error, last_code = "rate limited", "RNX-T004"
                 continue
             if resp.status_code == 401:
-                raise TMDbError("401", "TheMovieDB didn't accept the key. Check it in Settings → Matching.")
+                log_event(log, logging.ERROR, "RNX-T002", path=path, status=401)
+                raise TMDbError("401", code="RNX-T002")
             if resp.status_code == 404:
-                raise TMDbError("404", "TheMovieDB has no entry for that.")
+                log_event(log, logging.INFO, "RNX-T003", path=path, status=404)
+                raise TMDbError("404", code="RNX-T003")
             if resp.status_code >= 500:
-                last_error = f"server {resp.status_code}"
+                last_error, last_code = f"server {resp.status_code}", "RNX-T005"
+                log_event(log, logging.WARNING, "RNX-T005", f"Server error {resp.status_code} (try {attempt + 1} of 4)",
+                          path=path)
                 time.sleep(1.5 * (2 ** attempt))
                 continue
-            raise TMDbError(f"HTTP {resp.status_code}: {resp.text[:200]}")
+            log_event(log, logging.ERROR, "RNX-T008", f"Unexpected reply {resp.status_code}", path=path,
+                      body=resp.text[:300])
+            raise TMDbError(f"HTTP {resp.status_code}: {resp.text[:200]}", code="RNX-T008")
         if self.cache is not None:
             stale = self.cache.get(key, allow_stale=True)
             if stale is not None:
+                log.warning("Using an older saved answer for %s because TheMovieDB couldn't be reached", path)
                 return stale
-        raise TMDbError(last_error or "failed")
+        log_event(log, logging.ERROR, last_code, "Gave up after 4 tries", path=path, error=last_error[:300])
+        raise TMDbError(last_error or "failed", code=last_code)
 
     # ------------------------------------------------------------------ API
     def search_movie(self, query: str, year: int | None = None) -> list[dict]:

@@ -16,6 +16,7 @@ from __future__ import annotations
 import datetime as _dt
 import errno
 import json
+import logging
 import os
 import re
 import secrets
@@ -26,6 +27,7 @@ from pathlib import Path
 from typing import Callable
 
 from .config import atomic_write_json
+from .diagnostics import friendly, log_event
 from .naming import Formats, facts_for, render
 from .scanner import IMAGE_EXTS, INFO_EXTS, SUBTITLE_EXTS
 
@@ -34,6 +36,7 @@ try:
 except ImportError:
     send2trash = None
 
+log = logging.getLogger("rennix.renamer")
 IS_WINDOWS = os.name == "nt"
 MAX_PATH = 259 if IS_WINDOWS else 4000
 RES_RANK = {"2160p": 5, "1440p": 4, "1080p": 3, "1080i": 3, "720p": 2, "576p": 1, "480p": 1}
@@ -52,6 +55,7 @@ class Op:
     state: str = "pending"        # pending | done | failed | undone | skipped
     replace: bool = False         # replace an existing lower-quality file (sent to Recycle Bin)
     error: str = ""
+    code: str = ""
     created_dirs: list = field(default_factory=list)
     replaced_to_trash: bool = False
 
@@ -72,26 +76,34 @@ def _norm_key(p: Path) -> str:
     return s.lower() if IS_WINDOWS or sys.platform == "darwin" else s
 
 
-def _friendly(exc: BaseException, action: str = "move") -> str:
+def _error_code(exc: BaseException, action: str = "move") -> str:
+    """Map an operating-system error to a Rennix error code."""
     if isinstance(exc, FileExistsError):
-        return "A file with the new name already exists."
+        return "RNX-R002"
     if isinstance(exc, FileNotFoundError):
-        return "The file has moved or been deleted since it was scanned."
+        return "RNX-R003"
     if isinstance(exc, PermissionError):
-        return "The file is in use or protected. Close any program using it and try again."
+        return "RNX-R007" if action == "symlink" and IS_WINDOWS else "RNX-R001"
     if isinstance(exc, OSError):
-        if exc.errno == errno.EXDEV or getattr(exc, "winerror", None) == 17:
-            if action == "hardlink":
-                return "Hardlinks only work when the file and library are on the same drive."
-            return "Couldn't move between drives."
-        if exc.errno in (errno.ENAMETOOLONG,) or getattr(exc, "winerror", None) == 206:
-            return "The new path is too long for this drive."
-        if exc.errno == errno.ENOSPC:
-            return "Not enough free space on the destination drive."
+        win = getattr(exc, "winerror", None)
+        if exc.errno == errno.EXDEV or win == 17:
+            return "RNX-R004" if action == "hardlink" else "RNX-R009"
+        if exc.errno == errno.ENAMETOOLONG or win == 206:
+            return "RNX-R005"
+        if exc.errno == errno.ENOSPC or win == 112:
+            return "RNX-R006"
+        if exc.errno == errno.EIO and "size" in str(exc):
+            return "RNX-R008"
+        if win in (32, 33):              # sharing / lock violation
+            return "RNX-R001"
         if action == "symlink" and IS_WINDOWS:
-            return "Windows needs Developer Mode turned on to create symlinks."
-        return exc.strerror or str(exc)
-    return str(exc)
+            return "RNX-R007"
+        return "RNX-R099"
+    return "RNX-X001"
+
+
+def _friendly(exc: BaseException, action: str = "move") -> str:
+    return friendly(_error_code(exc, action))
 
 
 def _same_file(a: Path, b: Path) -> bool:
@@ -359,8 +371,14 @@ class Renamer:
             try:
                 self._do(op)
                 op.state = "done"
+                log.info("%s: %s → %s", op.action, Path(op.src).name, op.dst,
+                         extra={"ctx": {"op": op.id, "file": op.file_id}})
             except (OSError, ValueError) as exc:
-                op.state, op.error = "failed", _friendly(exc, op.action)
+                op.code = _error_code(exc, op.action)
+                op.state, op.error = "failed", friendly(op.code)
+                log_event(log, logging.ERROR, op.code, f"Couldn't {op.action} a file: {exc}", exc,
+                          src=op.src, dst=op.dst, action=op.action, errno=getattr(exc, "errno", None),
+                          winerror=getattr(exc, "winerror", None))
             batch["ops"][i] = asdict(op)
             self._journal(batch)
             if progress:
@@ -386,8 +404,11 @@ class Renamer:
             self.paths.journal_file.unlink()
         except FileNotFoundError:
             pass
+        log.info("Batch %s finished: %s renamed, %s extra files, %s failed", batch["id"],
+                 batch["summary"]["done"], batch["summary"]["companions"], batch["summary"]["failed"])
         return {"batch_id": batch["id"], **batch["summary"],
-                "errors": [{"file_id": o["file_id"], "src": o["src"], "message": o["error"]} for o in failed]}
+                "errors": [{"file_id": o["file_id"], "src": o["src"], "message": o["error"],
+                            "code": o.get("code", "")} for o in failed]}
 
     def _tidy_sources(self, batch: dict) -> list[str]:
         """Remove folders a move left completely empty (never anything with files in)."""
@@ -416,6 +437,7 @@ class Renamer:
         batch = self.pending_journal()
         if not batch:
             return {"batch_id": None, "done": 0, "companions": 0, "failed": 0, "errors": []}
+        log_event(log, logging.WARNING, "RNX-U002", f"Recovering an interrupted batch ({mode})", batch=batch["id"])
         for od in batch["ops"]:
             if od["state"] != "pending":
                 continue
@@ -517,7 +539,11 @@ class Renamer:
                     except OSError:
                         pass
             except OSError as exc:
-                errors.append({"file_id": od["file_id"], "src": od["dst"],
-                               "message": "Couldn't undo: " + _friendly(exc, od["action"])})
+                code = _error_code(exc, od["action"])
+                log_event(log, logging.ERROR, "RNX-U001", f"Couldn't put a file back: {exc}", exc,
+                          src=od["dst"], back_to=od["src"], cause=code)
+                errors.append({"file_id": od["file_id"], "src": od["dst"], "code": "RNX-U001",
+                               "message": friendly("RNX-U001", "Couldn't put a file back: " + friendly(code))})
         atomic_write_json(f, batch)
+        log.info("Undo of batch %s: %s file(s) put back, %s problem(s)", batch_id, undone, len(errors))
         return {"batch_id": batch_id, "undone": undone, "errors": errors}

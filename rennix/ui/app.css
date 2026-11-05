@@ -255,3 +255,30 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); outline
   .snav, .fe-side { width: 200px; }
   .steps { grid-template-columns: 1fr; }
 }
+
+/* ------------------------------------------------------------- console */
+.icon-btn { position: relative; }
+.badge { position: absolute; top: 5px; right: 5px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--red); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.console { position: fixed; left: 0; right: 0; bottom: 0; height: 42vh; min-height: 260px; z-index: 35; background: #0A0C10; border-top: 1px solid var(--line-2); display: flex; flex-direction: column; box-shadow: 0 -10px 30px rgba(0,0,0,.4); animation: up .18s ease-out; color: #D3D8E1; }
+[data-theme="light"] .console { background: #FBFCFD; color: var(--text); }
+.console-head { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.console-head b { display: flex; align-items: center; gap: 8px; margin-right: 6px; }
+.console-head .seg button { min-height: 30px; padding: 4px 10px; font-size: 12.5px; }
+.console-head input { min-height: 32px; padding: 5px 10px; font-size: 13px; width: 220px; }
+.console-head .spacer { flex: 1; }
+.console-body { flex: 1; overflow: auto; font-family: var(--mono); font-size: 12.5px; user-select: text; }
+.log { display: grid; grid-template-columns: 92px 64px 92px 110px minmax(0, 1fr); gap: 10px; padding: 4px 14px; border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); cursor: default; }
+.log.has-detail { cursor: pointer; }
+.log:hover { background: var(--hover); }
+.log .t { color: var(--muted); }
+.log .lv { font-weight: 700; }
+.log.ERROR .lv, .log.CRITICAL .lv { color: var(--red-text); } .log.ERROR, .log.CRITICAL { background: color-mix(in srgb, var(--red) 8%, transparent); }
+.log.WARNING .lv { color: var(--amber-text); }
+.log.INFO .lv { color: var(--accent); } .log.DEBUG .lv { color: var(--muted); }
+.log .cd { color: var(--amber-text); }
+.log .wh { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.log .msg { white-space: pre-wrap; word-break: break-word; }
+.log .det { grid-column: 1 / -1; white-space: pre-wrap; color: var(--muted); background: var(--raised); border-radius: 6px; padding: 8px 10px; margin: 4px 0; }
+.log .fix { color: var(--green-text); }
+
+.console:not(.hidden) ~ .toasts { bottom: calc(max(42vh, 260px) + 16px); }

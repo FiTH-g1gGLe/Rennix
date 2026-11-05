@@ -38,6 +38,8 @@
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></symbol>
   <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"></path><path d="M4 9h11a5 5 0 0 1 0 10h-3"></path></symbol>
   <symbol id="i-csv" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5M9 13h6M9 17h6"></path></symbol>
+  <symbol id="i-bug" viewBox="0 0 24 24"><rect x="7" y="6" width="10" height="14" rx="5"></rect><path d="M12 6V3M9 4l1 2M15 4l-1 2M7 11H3M21 11h-4M7 16H4M20 16h-3M12 10v10"></path></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></symbol>
   <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"></path><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"></path></symbol>
 </svg>
 
@@ -52,6 +54,7 @@
     <button data-mode="tv" data-tip="📺 TV Shows|Treat every file as a TV episode."><svg class="ic"><use href="#i-tv"></use></svg>TV Shows</button>
   </div>
   <div class="top-actions">
+    <button class="icon-btn hidden" id="btn-console" aria-label="Console" data-tip="🐞 Console|Everything Rennix is doing, with error codes.|Ctrl + Shift + L · Copy the report and send it to get help."><svg class="ic lg"><use href="#i-bug"></use></svg><span class="badge hidden" id="console-badge"></span></button>
     <button class="icon-btn" id="btn-history" aria-label="Rename history" data-tip="🕘 History|Every past rename, with Undo."><svg class="ic lg"><use href="#i-history"></use></svg></button>
     <button class="icon-btn" id="btn-format" aria-label="Naming formats" data-tip="🏷️ Naming formats|Pick a template or build your own."><svg class="ic lg"><use href="#i-tag"></use></svg></button>
     <button class="icon-btn" id="btn-settings" aria-label="Settings" data-tip="⚙️ Settings|Library folders, matching, safety and more."><svg class="ic lg"><use href="#i-gear"></use></svg></button>
@@ -118,6 +121,7 @@
   <aside class="side hidden" id="side" aria-label="Match details"></aside>
 </section>
 
+<section class="console hidden" id="console" aria-label="Console"></section>
 <div id="modal-root"></div>
 <div id="tip" role="tooltip"></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>

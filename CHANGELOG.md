@@ -2,6 +2,13 @@
 
 All notable changes to Rennix are listed here.
 
+## Unreleased
+
+### Added
+- 🐞 Console: a live log of everything Rennix does, with filters, search and a one-click **Copy report** for getting help (Ctrl + Shift + L)
+- Error codes (like `RNX-R001`) on every problem, each with a plain explanation and what to do
+- Detailed log files with rotation, crash capture and interface error capture
+
 ## 0.1.0-alpha (November 2026)
 
 First test build.
