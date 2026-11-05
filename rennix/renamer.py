@@ -166,7 +166,7 @@ def build_plan(items: list, formats: Formats, settings: dict, include_amber: boo
                                              + ("film." if m.kind == "movie" else "episode.")})
         seen_matches[key] = fid
 
-        if dst == src:
+        if str(dst) == str(src):   # exact, so case-only changes still happen on Windows
             plan.skipped.append({"file_id": fid, "reason": "Already named correctly"})
             continue
 
@@ -200,7 +200,8 @@ def build_plan(items: list, formats: Formats, settings: dict, include_amber: boo
                 cdst = dst.parent / c.suffix
             else:
                 cdst = dst.parent / (dst.stem + c.suffix)
-            if cdst == c.path or _norm_key(cdst) in taken or existing(str(cdst)):
+            case_only = _norm_key(cdst) == _norm_key(c.path)
+            if str(cdst) == str(c.path) or _norm_key(cdst) in taken or (existing(str(cdst)) and not case_only):
                 continue
             taken[_norm_key(cdst)] = fid
             counter += 1
