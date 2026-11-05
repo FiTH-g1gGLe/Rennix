@@ -2,7 +2,7 @@
 
 All notable changes to Rennix are listed here.
 
-## Unreleased
+## 0.1.1-alpha (November 2026)
 
 ### Added
 - 🐞 Console: a live log of everything Rennix does, with filters, search and a one-click **Copy report** for getting help (Ctrl + Shift + L)
