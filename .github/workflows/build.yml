@@ -1,0 +1,102 @@
+name: Test and build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests platformdirs guessit rapidfuzz send2trash pytest
+      - name: Run tests
+        run: python -m pytest -q
+
+  build-windows:
+    name: Build Windows app
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Bundle the TheMovieDB token (from the repo secret, never committed)
+        shell: python
+        env:
+          TMDB_READ_TOKEN: ${{ secrets.TMDB_READ_TOKEN }}
+        run: |
+          import os
+          tok = os.environ.get("TMDB_READ_TOKEN", "").strip()
+          with open("rennix/_bundled.py", "w", encoding="utf-8") as fh:
+              fh.write(f"TMDB_READ_TOKEN = {tok!r}\n")
+          print("Token bundled" if tok else "No TMDB_READ_TOKEN secret set: users will be asked for a key")
+      - name: Version
+        id: ver
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then V="${GITHUB_REF#refs/tags/v}"; else V="$(python -c 'import rennix; print(rennix.__version__)')"; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+      - name: Build with PyInstaller
+        run: >
+          pyinstaller --noconfirm --clean --windowed --name Rennix
+          --icon assets/rennix.ico
+          --add-data "rennix/ui;rennix/ui"
+          --collect-data guessit --collect-data babelfish --collect-data rebulk
+          --collect-binaries pymediainfo
+          --hidden-import rennix._bundled
+          run_rennix.py
+      - name: Smoke test the build
+        shell: pwsh
+        run: |
+          if (!(Test-Path dist/Rennix/Rennix.exe)) { throw "Rennix.exe missing" }
+          if (!(Test-Path dist/Rennix/_internal/rennix/ui/index.html)) { throw "UI files missing" }
+      - name: Portable zip
+        shell: pwsh
+        run: |
+          Copy-Item -Recurse dist/Rennix dist/Rennix-Portable
+          Set-Content dist/Rennix-Portable/portable.txt "Rennix keeps its settings in the data folder next to it."
+          Compress-Archive -Path dist/Rennix-Portable/* -DestinationPath "dist/Rennix-${{ steps.ver.outputs.version }}-Windows-Portable.zip"
+      - name: Installer
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.ver.outputs.version }} installer\rennix.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Rennix-Windows-${{ steps.ver.outputs.version }}
+          path: |
+            dist/Rennix-Setup-*.exe
+            dist/Rennix-*-Windows-Portable.zip
+      - name: Publish release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ contains(github.ref, '-') }}
+          files: |
+            dist/Rennix-Setup-*.exe
+            dist/Rennix-*-Windows-Portable.zip

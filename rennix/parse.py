@@ -10,6 +10,7 @@ IDs in names, country codes, and alternative readings of ambiguous names.
 from __future__ import annotations
 
 import datetime as _dt
+import os
 import re
 from dataclasses import dataclass, field, asdict
 from pathlib import PurePath
@@ -423,15 +424,25 @@ def _merge_guessit(p: Parsed, name: str) -> Parsed:
     except Exception:  # guessit must never break a scan
         return p
     p.engine = "guessit+builtin"
+    gtype = g.get("type")
+    # guessit sometimes reads "Star Wars Episode IV" as a TV episode. Only trust its
+    # episode reading when there's a season, a date, or our own parser agrees.
+    builtin_episode = p.kind == "episode"
+    accept_episode = gtype == "episode" and (
+        builtin_episode or g.get("season") is not None or g.get("date") is not None or p.is_anime)
+    if gtype == "episode" and not accept_episode:
+        return p
     gtitle = g.get("title")
     if isinstance(gtitle, str) and gtitle.strip() and not p.ids:
+        gtitle = gtitle.strip()
         # keep our title when we stripped a country code that guessit kept
-        if not (p.country and gtitle.lower().endswith(p.country.lower())):
-            p.title = gtitle.strip()
+        if not (p.country and gtitle.lower().endswith(p.country.lower())) and gtitle.lower() != p.title.lower():
+            if p.title:
+                p.alt_titles.insert(0, (p.title, p.year))   # try our reading too
+            p.title = gtitle
     if isinstance(g.get("year"), int) and p.year is None:
         p.year = g["year"]
-    gtype = g.get("type")
-    if gtype == "episode":
+    if accept_episode:
         p.kind = "episode"
         if isinstance(g.get("season"), int) and p.season is None:
             p.season = g["season"]
@@ -463,6 +474,8 @@ def _merge_guessit(p: Parsed, name: str) -> Parsed:
 def parse_name(name: str, engine: str = "auto", is_file: bool = True) -> Parsed:
     """Parse one file or folder name. ``engine``: auto | builtin."""
     p = parse_builtin(name, is_file=is_file)
+    if engine == "auto" and os.environ.get("RENNIX_PARSER") == "builtin":
+        engine = "builtin"
     if engine == "auto" and _guessit is not None and is_file:
         p = _merge_guessit(p, name)
     return p
