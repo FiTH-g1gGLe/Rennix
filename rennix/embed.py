@@ -279,7 +279,9 @@ def mkv_tags_xml(tags: dict) -> str:
         return f"<Simple><Name>{escape(name)}</Name><String>{escape(str(value))}</String></Simple>"
 
     def tag(level, pairs):
-        body = "".join(simple(k, v) for k, vals in pairs for v in (vals if isinstance(vals, list) else [vals]) if v not in (None, ""))
+        # lists go in as one value ("Action, Adventure"): many players only show one tag of each name
+        body = "".join(simple(k, ", ".join(map(str, v)) if isinstance(v, list) else v)
+                       for k, v in pairs if v not in (None, "", []))
         return f"<Tag><Targets><TargetTypeValue>{level}</TargetTypeValue></Targets>{body}</Tag>" if body else ""
 
     main = [("TITLE", tags.get("title")), ("DATE_RELEASED", tags.get("date")), ("GENRE", tags.get("genres", [])),
@@ -303,7 +305,7 @@ def _mp4_values(tags: dict, cover: bytes | None) -> dict:
     put = lambda k, x: v.__setitem__(k, x) if x not in (None, "", []) else None
     put("©nam", [tags.get("title")] if tags.get("title") else None)
     put("©day", [tags.get("date")] if tags.get("date") else None)
-    put("©gen", tags.get("genres") or None)
+    put("©gen", [", ".join(tags["genres"])] if tags.get("genres") else None)
     plot = tags.get("plot") or ""
     put("desc", [plot[:255]] if plot else None)
     put("ldes", [plot] if plot else None)

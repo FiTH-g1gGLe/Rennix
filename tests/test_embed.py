@@ -241,7 +241,8 @@ def test_mkvpropedit_writes_tags_and_cover_and_undoes_exactly(copy_of, tmp_path,
     rec = embed.write(f, TAGS, cover, tmp_path / "b", "o1", safe_copy=safe_copy)
     s = ebml.read(f)
     assert s.title == "The Matrix"
-    assert s.tags["TITLE"][0] == "The Matrix" and "Keanu Reeves" in s.tags["ACTOR"]
+    assert s.tags["TITLE"][0] == "The Matrix" and s.tags["ACTOR"] == ["Keanu Reeves, Carrie-Anne Moss"]
+    assert s.tags["GENRE"] == ["Action, Science Fiction"]
     assert s.tags["SUMMARY"][0] == TAGS["plot"]
     assert any(n == "cover.jpg" for n, _ in s.attachments)
     assert not embed.same_media(fp, embed.fingerprint(f, "mkv"))     # video, audio, subs untouched
@@ -305,7 +306,8 @@ def test_episode_tags_in_mp4(copy_of, tmp_path):
 
 def test_mkv_tag_xml_escapes_everything():
     xml = embed.mkv_tags_xml(TAGS)
-    assert "&lt;angle&gt;" in xml and "&amp;" in xml and xml.count("<Name>ACTOR</Name>") == 2
+    assert "&lt;angle&gt;" in xml and "&amp;" in xml and xml.count("<Name>ACTOR</Name>") == 1
+    assert "<String>Keanu Reeves, Carrie-Anne Moss</String>" in xml
     import xml.etree.ElementTree as ET
     ET.fromstring(xml.split("\n", 2)[2])
 

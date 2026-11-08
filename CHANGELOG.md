@@ -2,6 +2,11 @@
 
 All notable changes to Rennix are listed here.
 
+## 0.2.1-alpha (November 2026)
+
+### Fixed
+- Several genres, writers, directors or actors are now written as one list ("Action, Adventure, Fantasy"), so players like VLC show them all instead of just one.
+
 ## 0.2.0-alpha (November 2026)
 
 Version 2: metadata. Everything is optional and off until you turn it on.
