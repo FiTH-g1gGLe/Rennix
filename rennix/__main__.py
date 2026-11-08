@@ -21,6 +21,11 @@ def _install_drop_handler(window, api) -> None:
             api.add_paths(paths, mode)
 
     def on_loaded():
+        import logging
+        logging.getLogger("rennix.app").info("Window ready")
+        if os.environ.get("RENNIX_SMOKE") == "1":      # used by the GitHub build to prove the app opens
+            import threading
+            threading.Timer(4.0, window.destroy).start()
         try:
             doc = window.dom.document
             doc.events.dragenter += DOMEventHandler(lambda e: None, True, True)
@@ -70,8 +75,17 @@ def _show_start_error(message: str) -> None:
     print(message, file=sys.stderr)
 
 
+def _prepare_linux() -> None:
+    """Packaged Linux app: use the bundled Qt window. Many distributions block the
+    browser sandbox Qt uses, and Rennix only shows its own local pages, so turn it off."""
+    if sys.platform.startswith("linux") and getattr(sys, "frozen", False):
+        os.environ.setdefault("QTWEBENGINE_DISABLE_SANDBOX", "1")
+        os.environ.setdefault("QT_QPA_PLATFORM", "xcb" if os.environ.get("DISPLAY") else "wayland")
+
+
 def main() -> int:
     cleared = _unblock_bundled_files()
+    _prepare_linux()
     try:
         import webview
     except ImportError:
@@ -96,7 +110,8 @@ def main() -> int:
     api._window = window
     _install_drop_handler(window, api)
     try:
-        webview.start(debug=os.environ.get("RENNIX_DEBUG") == "1")
+        gui = "qt" if sys.platform.startswith("linux") and getattr(sys, "frozen", False) else None
+        webview.start(gui=gui, debug=os.environ.get("RENNIX_DEBUG") == "1")
     except Exception as exc:
         log_event(log, logging.CRITICAL, "RNX-W002", f"The app window couldn't open: {exc}", exc)
         _show_start_error(

@@ -680,7 +680,7 @@ function metadataPane() {
   const dim = md.enabled ? "" : " dim";
   const plexNote = server === "plex" ? `<div class="card pad note"><div>💡 <b>Plex tip:</b> Plex reads posters, logos and thumbnails when <i>Use local assets</i> is on in your library's settings. It ignores .nfo files, and only reads tags from MP4 files.</div></div>` : "";
   const tools = `<div class="card pad"><h4>🧰 Tools</h4><div class="desc" style="margin:0">
-      ${t.mkvpropedit ? "✅" : "❌"} mkvpropedit (MKV files)${t.mkvpropedit ? "" : " · not found, so tags can't go into MKV files"}<br>
+      ${t.mkvpropedit ? "✅" : "❌"} mkvpropedit (MKV files)${t.mkvpropedit ? "" : S.platform === "darwin" ? " · install MKVToolNix (from mkvtoolnix.download, or <code>brew install mkvtoolnix</code>) to write tags into MKV files" : S.platform === "win32" ? " · not found, so tags can't go into MKV files" : " · install the <code>mkvtoolnix</code> package to write tags into MKV files"}<br>
       ${t.mutagen ? "✅" : "❌"} mutagen (MP4 files)${t.mutagen ? "" : " · missing, so tags can't go into MP4 files"}</div></div>`;
   return `
     <div class="card">${sw("metadata", "enabled", "Save metadata", "Off by default. When on, Rennix also saves the items ticked below whenever you rename. Files that are already named correctly get them too.", "📝")}</div>

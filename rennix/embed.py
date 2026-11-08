@@ -81,6 +81,12 @@ def find_mkvpropedit(custom: str = "") -> str | None:
         for env in ("ProgramFiles", "ProgramFiles(x86)"):
             if os.environ.get(env):
                 cands.append(Path(os.environ[env]) / "MKVToolNix" / exe)
+    elif sys.platform == "darwin":
+        # apps opened from Finder don't see Homebrew's folders, so look there directly
+        cands += [Path("/opt/homebrew/bin/mkvpropedit"), Path("/usr/local/bin/mkvpropedit")]
+        cands += sorted(Path("/Applications").glob("MKVToolNix*.app/Contents/MacOS/mkvpropedit"), reverse=True)
+    else:
+        cands += [Path("/usr/bin/mkvpropedit"), Path("/usr/local/bin/mkvpropedit")]
     for c in cands:
         if c.is_file():
             return str(c)
