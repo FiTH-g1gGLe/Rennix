@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="52" viewBox="0 0 200 52" role="img" aria-label="Linux preview">
+  <rect x="1" y="1" width="198" height="50" rx="11" fill="#161920" stroke="#343B48" stroke-width="2"/>
+  <g fill="none" stroke="#E7E9EE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="translate(19 14)">
+    <rect x="1" y="1" width="22" height="20" rx="3"/><path d="M6 8l4 3-4 3M12 15h6"/>
+  </g>
+  <text x="54" y="32.5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#E7E9EE">Linux <tspan font-weight="400" fill="#9AA3B2">preview</tspan></text>
+</svg>

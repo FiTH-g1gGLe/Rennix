@@ -2,6 +2,15 @@
 
 All notable changes to Rennix are listed here.
 
+## 0.3.0-alpha (November 2026)
+
+### Added
+- 🍎 **Mac preview**: a `.dmg` for Macs with Apple chips (M1 and newer).
+- 🐧 **Linux preview**: an AppImage that runs on most 64-bit Linux systems.
+- Both are built from the same code as the Windows version, and every build on every system is opened and closed automatically before it's published.
+- On Mac and Linux, Rennix finds MKVToolNix from Homebrew, the MKVToolNix app or your Linux packages for writing MKV tags, and Settings → Metadata says how to install it if it's missing.
+- Our signature in Settings → About.
+
 ## 0.2.2-alpha (November 2026)
 
 ### Fixed

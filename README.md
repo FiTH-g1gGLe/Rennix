@@ -10,12 +10,16 @@ shows you the new names, and sorts your whole library in one click. Nothing chan
 <a href="https://github.com/FiTH-g1gGLe/Rennix/releases/latest"><img src="docs/badges/download-windows.svg" alt="Download for Windows" height="52"></a>
 &nbsp;
 <a href="https://github.com/FiTH-g1gGLe/Rennix/releases/latest"><img src="docs/badges/download-portable.svg" alt="Portable zip" height="52"></a>
+<br>
+<a href="https://github.com/FiTH-g1gGLe/Rennix/releases/latest"><img src="docs/badges/download-macos.svg" alt="macOS preview" height="44"></a>
+&nbsp;
+<a href="https://github.com/FiTH-g1gGLe/Rennix/releases/latest"><img src="docs/badges/download-linux.svg" alt="Linux preview" height="44"></a>
 
 [![Latest release](https://img.shields.io/github/v/release/FiTH-g1gGLe/Rennix?label=latest&color=2DD4BF)](https://github.com/FiTH-g1gGLe/Rennix/releases)
 [![Downloads](https://img.shields.io/github/downloads/FiTH-g1gGLe/Rennix/total?label=downloads&color=2DD4BF&logo=github)](https://github.com/FiTH-g1gGLe/Rennix/releases)
 [![Build](https://github.com/FiTH-g1gGLe/Rennix/actions/workflows/build.yml/badge.svg)](https://github.com/FiTH-g1gGLe/Rennix/actions/workflows/build.yml)
 [![Licence: MIT](docs/badges/licence-mit.svg)](LICENSE)
-[![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)](https://github.com/FiTH-g1gGLe/Rennix/releases/latest)
+[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-0078D4)](https://github.com/FiTH-g1gGLe/Rennix/releases/latest)
 [![Data: TMDB](https://img.shields.io/badge/data-TMDB-01B4E4)](https://www.themoviedb.org/)
 
 <img src="docs/demo.gif" alt="Rennix in action: a folder is dropped in, files are matched, a quick preview appears, the poster wall and folder views are shown, and everything is renamed" width="880">
@@ -32,7 +36,7 @@ shows you the new names, and sorts your whole library in one click. Nothing chan
 - 🏷️ **Names your media server loves.** Plex, Jellyfin, Emby and Kodi templates built in, or design your own with a live preview.
 - 📝 **Posters, `.nfo` files and tags.** Optional metadata saved next to your files, or written safely inside MKV and MP4 files.
 - ↩️ **Undo anything.** Every batch is kept in History and reversed in one click. A crash journal means a power cut never leaves files half-done.
-- 🆓 **Free, no account.** Open source, no sign-up, no adverts, and TheMovieDB access is built in.
+- 🆓 **Free, no account.** Open source, no sign-up, no adverts, and TheMovieDB access is built in. For Windows, with Mac and Linux previews.
 
 <details>
 <summary><b>See every feature</b></summary>
@@ -94,15 +98,46 @@ shows you the new names, and sorts your whole library in one click. Nothing chan
 
 ## 📥 Download
 
-| Version | Best for |
-| --- | --- |
-| [**Rennix Setup** (.exe)](https://github.com/FiTH-g1gGLe/Rennix/releases/latest) | Most people. Installs for your user only, no admin rights needed |
-| [**Portable** (.zip)](https://github.com/FiTH-g1gGLe/Rennix/releases/latest) | Running from a USB stick or without installing. Keeps its settings beside the app |
+All downloads are on the [latest release](https://github.com/FiTH-g1gGLe/Rennix/releases/latest) page.
+
+| System | Download | Notes |
+| --- | --- | --- |
+| **Windows 10 / 11** | `Rennix-Setup-….exe` | Recommended. Installs for your user only, no admin rights needed |
+| | `Rennix-…-Windows-Portable.zip` | Runs from anywhere, such as a USB stick. Keeps its settings beside the app |
+| **macOS** *(preview)* | `Rennix-…-macOS-AppleSilicon.dmg` | For Macs with Apple chips (M1 and newer). Open it and drag Rennix to Applications |
+| **Linux** *(preview)* | `Rennix-…-Linux-x86_64.AppImage` | A single file that runs on most 64-bit Linux systems |
 
 > [!TIP]
-> Windows may show **"Windows protected your PC"** for new apps. Click **More info → Run anyway**.
+> **Windows** may show **"Windows protected your PC"** for new apps. Click **More info → Run anyway**.
 
-Works on Windows 10 and 11. Mac and Linux builds are planned; until then the code runs on them from source (see below).
+<details>
+<summary><b>Mac: opening Rennix the first time</b></summary>
+
+Rennix isn't signed with a paid Apple developer certificate yet, so macOS blocks it the first time:
+
+1. Open Rennix once. macOS says it can't be opened. Click **Done**.
+2. Open **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to Rennix.
+3. Open Rennix again and choose **Open**. From then on it opens normally.
+
+If macOS says the app **"is damaged"**, open Terminal and run:
+`xattr -dr com.apple.quarantine /Applications/Rennix.app`
+
+To write tags into MKV files, install [MKVToolNix](https://mkvtoolnix.download/) (or `brew install mkvtoolnix`).
+</details>
+
+<details>
+<summary><b>Linux: running the AppImage</b></summary>
+
+1. Make it runnable: right-click → **Properties → Allow executing as a program**, or run `chmod +x Rennix-*.AppImage`
+2. Double-click it, or run `./Rennix-*.AppImage`
+
+If it won't start on Ubuntu 22.04 or newer, install FUSE: `sudo apt install libfuse2` (on 24.04: `libfuse2t64`).
+
+To write tags into MKV files, install the `mkvtoolnix` package (for example `sudo apt install mkvtoolnix`).
+</details>
+
+> [!NOTE]
+> The Mac and Linux versions are **previews**. They're built and tested automatically from the same code as Windows, but haven't been tried by many people yet. If something's off, please [report it](https://github.com/FiTH-g1gGLe/Rennix/issues/new?template=bug_report.yml).
 
 ## 🚀 How it works
 
@@ -176,7 +211,8 @@ Rennix was inspired by [FileBot](https://www.filebot.net/), which many people us
 - [ ] Artwork picker and a per-file metadata preview
 - [ ] File fingerprinting for badly named files
 - [ ] Library health check, watch folders, Plex and Jellyfin refresh
-- [ ] Mac and Linux builds
+- [x] Mac and Linux preview builds
+- [ ] Signed Mac app, Intel Mac build, and more Linux formats
 
 Got an idea? [Suggest a feature](https://github.com/FiTH-g1gGLe/Rennix/issues/new?template=feature_request.yml).
 
@@ -209,7 +245,11 @@ Not unless you ask it to. Renaming only changes names and locations; moves betwe
 <details>
 <summary><b>Where does Rennix keep its data?</b></summary>
 
-Settings and your custom formats are in `%APPDATA%\Rennix`; the match cache, undo history and logs are in `%LOCALAPPDATA%\Rennix`. The portable version keeps everything in a `data` folder beside the app. Nothing is ever stored in Temp.
+- **Windows:** settings and custom formats in `%APPDATA%\Rennix`; the match cache, undo history and logs in `%LOCALAPPDATA%\Rennix`. The portable version keeps everything in a `data` folder beside the app.
+- **Mac:** `~/Library/Application Support/Rennix` (cache in `~/Library/Caches/Rennix`)
+- **Linux:** `~/.config/Rennix`, `~/.local/share/Rennix` and `~/.cache/Rennix`
+
+Nothing is ever stored in Temp.
 </details>
 
 <details>
