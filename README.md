@@ -39,6 +39,8 @@ Nothing changes until you've checked the preview, and every rename can be undone
 | ↩️ **Undo anything** | Every batch is kept in History and can be reversed in one click |
 | 💥 **Crash-safe** | A rename journal means a crash or power cut never leaves files half-renamed |
 | 📺 **TV done properly** | Double episodes, specials, anime numbering and daily shows by air date |
+| 📝 **Metadata (optional)** | Posters, logos, season posters, episode thumbnails and `.nfo` files, named for your media server. Every item has its own switch, and it's all off until you turn it on |
+| 🏷️ **Tags inside the file (optional)** | Title, plot, cast and a cover written into MKV and MP4 files. Only the header changes; every write is backed up, checked against the original video data and can be undone |
 
 ## 📸 Screenshots
 
@@ -95,7 +97,7 @@ Mac and Linux builds are planned. Until then, run from source (below); the code 
 - [x] Windows installer and portable builds
 - [ ] Real-world testing and fixes *(in progress)*
 - [ ] File fingerprinting for badly named files
-- [ ] **Version 2:** write cast, director, plot and posters into files and `.nfo` files
+- [x] **Version 2:** posters, logos, `.nfo` files and tags inside MKV and MP4 files
 - [ ] Library health check, watch folders, Plex and Jellyfin refresh
 - [ ] Mac and Linux builds
 
@@ -110,7 +112,9 @@ Settings and your custom formats are in `%APPDATA%\Rennix`; the match cache, und
 <details>
 <summary><b>Does it change the video files themselves?</b></summary>
 
-No. Version 1 only changes names and locations. Moves between drives are copied, size-checked, and only then is the original removed.
+Not unless you ask it to. Renaming only changes names and locations; moves between drives are copied, size-checked, and only then is the original removed.
+
+Writing **tags inside the file** is optional and off by default. When it's on, Rennix uses [mkvpropedit](https://mkvtoolnix.download/) for MKV and [mutagen](https://mutagen.readthedocs.io/) for MP4, which change only the file's header, never the video or audio. Before each write Rennix backs up the exact bytes that may change and fingerprints the video data; afterwards it checks the video data is byte-for-byte identical and the tags read back. If anything is off, the file is put back exactly as it was. **Maximum safety** in Settings writes to a copy first and swaps it in only once it's checked.
 </details>
 
 <details>
@@ -150,14 +154,19 @@ Run the tests with `python -m pytest`. Every push is tested on Windows, Mac and 
 | `rennix/tmdb.py` | TheMovieDB client with caching and retries |
 | `rennix/naming.py` | Templates, the custom format language and safe file names |
 | `rennix/renamer.py` | Planning, the crash journal, renaming and undo |
+| `rennix/metadata.py` | Version 2: details, artwork, `.nfo` files and where they go for each media server |
+| `rennix/embed.py` | Safe tag writing inside MKV and MP4 files, with backups, checks and undo |
+| `rennix/ebml.py`, `rennix/mp4box.py` | Read-only MKV and MP4 structure readers used for those checks |
 | `rennix/api.py` | The bridge between the window and the engine |
 | `rennix/ui/` | The interface (HTML, CSS and JavaScript) |
-| `tests/` | 300+ automated tests using an offline copy of TheMovieDB data |
+| `tests/` | 360+ automated tests, including real MKV and MP4 files and "pull the plug" crash tests |
 </details>
 
 ## 🙏 Credits
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
+
+The Windows version includes `mkvpropedit` from [MKVToolNix](https://mkvtoolnix.download/) by Moritz Bunkus (GNU GPL v2) for writing MKV tags.
 
 ## 📄 Licence
 

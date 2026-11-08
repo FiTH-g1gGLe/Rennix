@@ -2,6 +2,21 @@
 
 All notable changes to Rennix are listed here.
 
+## 0.2.0-alpha (November 2026)
+
+Version 2: metadata. Everything is optional and off until you turn it on.
+
+### Added
+- 📝 **Save metadata** switch in the bottom bar and in Settings → Metadata, with a switch for each item.
+- Next to the video: poster, logo, `.nfo` info file, season posters and episode thumbnails, named to suit Plex, Jellyfin, Emby or Kodi.
+- Inside the video: tags (title, year, plot, genres, director, cast) and an embedded cover, for MKV (with mkvpropedit, included) and MP4 (with mutagen).
+- Safety for tags: the bytes that may change are backed up first; the video data is fingerprinted before and checked after; any problem puts the file back exactly as it was. MP4 files never have their video data shifted in place.
+- **Maximum safety** option: always write to a copy, check it, then swap it in.
+- Files that are already named correctly get metadata too, without being renamed.
+- Undo removes saved files and restores the original tags exactly; existing posters and `.nfo` files are kept unless you turn on **Replace existing**.
+- "Date modified" is kept the same when tags are written.
+- New error codes `RNX-M001` to `RNX-M011` and `RNX-U003`.
+
 ## 0.1.5-alpha (November 2026)
 
 ### Fixed
