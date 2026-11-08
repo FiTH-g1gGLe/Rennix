@@ -327,8 +327,22 @@ class Api:
         threading.Thread(target=self._rename, args=(include_amber, ids), daemon=True).start()
         return {"started": True}
 
+    def _drop_missing(self) -> list[str]:
+        """Forget files that are no longer where the list says (moved by undo, or by hand)."""
+        gone = [i for i in self._order if i in self._items and not Path(self._items[i].file.path).exists()]
+        for i in gone:
+            self._items.pop(i, None)
+        self._order = [i for i in self._order if i in self._items]
+        return gone
+
     def _rename(self, include_amber: bool, ids: list[str] | None) -> None:
         try:
+            gone = self._drop_missing()
+            if gone:
+                log.info("%s file(s) in the list had moved or gone since they were added; left out", len(gone))
+                self._emit("removed", {"ids": gone, "message":
+                           f"{len(gone)} file{'s' if len(gone) != 1 else ''} had moved or gone since being added, so "
+                           f"{'they were' if len(gone) != 1 else 'it was'} taken off the list."})
             items = [self._items[i] for i in self._order if i in self._items]
             plan = build_plan(items, self._formats, self._settings.data, include_amber=include_amber,
                               only_ids=set(ids) if ids else None)
@@ -436,6 +450,7 @@ class Api:
             r = Renamer(self._paths, self._settings.data).undo(batch_id, op_ids)
             if r.get("videos"):
                 self._learned.bump("renamed", -r["videos"])   # undone files no longer count as renamed
+            r["removed_ids"] = self._drop_missing()            # files undo moved away leave the list
             return r
         except (OSError, ValueError) as exc:
             return {"undone": 0, "errors": [{"message": f"Couldn't undo: {exc}"}]}

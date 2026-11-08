@@ -2,7 +2,13 @@
 
 All notable changes to Rennix are listed here.
 
-## Next
+## 0.2.2-alpha (November 2026)
+
+### Fixed
+- After an undo, files it moved away now leave the list. Before, renaming the old list could save posters and `.nfo` files into empty folders.
+- Metadata is only ever saved when the film or episode is really there, so nothing lands in a folder whose video has gone.
+- Files that moved or disappeared after being added are taken off the list before renaming, with a message.
+- A missing video now gives a clear "couldn't be found" message instead of "Only MKV and MP4 files…".
 
 ### Changed
 - The plot is also written as an MKV `COMMENT` tag, which Explorer add-ons such as Icaros show as Comments.

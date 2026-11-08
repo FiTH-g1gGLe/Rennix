@@ -153,6 +153,13 @@ const handlers = {
     }
     refreshStats();
   },
+  removed(d) {
+    for (const id of d.ids || []) { S.items.delete(id); delete S.previews[id]; }
+    S.order = S.order.filter((id) => S.items.has(id));
+    if (S.selected && !S.items.has(S.selected)) closeSide();
+    renderAll();
+    if (d.message) toast(`ℹ️ ${esc(d.message)}`, { timeout: 8000 });
+  },
   error(d) { setStatus(""); S.busy = false; toast(`❌ ${esc(d.message)}`, { timeout: 10000, action: { label: "Details", fn: openConsole } }); },
 };
 
@@ -563,6 +570,13 @@ $("#btn-export").onclick = async () => { const r = await api.export_plan($("#chk
 
 async function undoBatch(id) {
   const r = await api.undo(id, null);
+  if (r.removed_ids && r.removed_ids.length) {
+    for (const i of r.removed_ids) { S.items.delete(i); delete S.previews[i]; }
+    S.order = S.order.filter((i) => S.items.has(i));
+    if (S.selected && !S.items.has(S.selected)) closeSide();
+    renderAll();
+    if (!S.order.length) showScreen("start");
+  }
   if (r.undone) toast(`↩️ ${r.undone} file${r.undone === 1 ? "" : "s"} put back where they were.`);
   for (const e of r.errors || []) toast(`❌ ${esc(e.message)}`, { timeout: 9000 });
 }

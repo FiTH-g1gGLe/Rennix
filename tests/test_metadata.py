@@ -210,3 +210,35 @@ def test_tags_are_skipped_for_hardlinks_and_other_formats(tmp_path):
     run(api, dl)
     problems = [p for e, p in api._window.events if e == "renamed"][-1]["problems"]
     assert any("only go into MKV and MP4" in p["message"] for p in problems)
+
+
+def test_undo_then_rename_stale_list_saves_nothing(tmp_path):
+    """The bug from the 0.2.1 report: undo moved the films away, then the old list was renamed."""
+    dl = tmp_path / "dl"
+    touch(dl / "The.Matrix.1999.mkv")
+    api = make_api(tmp_path, server="jellyfin")
+    run(api, dl)
+    lib = tmp_path / "Movies" / "The Matrix (1999) [tmdbid-603]"
+    api.add_paths([str(tmp_path / "Movies")])         # the renamed film is loaded again
+    time.sleep(0.05)
+    wait_idle(api)
+    assert api._order
+    r = api.undo(api.history()[0]["id"])              # ...then the first batch is undone
+    assert r["removed_ids"] and not api._order        # the stale entry leaves the list
+    assert not lib.exists()
+
+
+def test_metadata_never_lands_in_a_folder_whose_film_has_gone(tmp_path):
+    lib = tmp_path / "Movies" / "The Matrix (1999) [tmdbid-603]"
+    touch(lib / "The Matrix (1999).mkv")
+    api = make_api(tmp_path, server="jellyfin", tags=True)
+    api.add_paths([str(tmp_path / "Movies")])
+    time.sleep(0.05)
+    wait_idle(api)
+    (lib / "The Matrix (1999).mkv").rename(tmp_path / "elsewhere.mkv")   # moved by hand afterwards
+    api.rename()
+    time.sleep(0.05)
+    wait_idle(api)
+    assert not [p for p in lib.iterdir()]                                # no orphan poster or .nfo
+    removed = [p for e, p in api._window.events if e == "removed"]
+    assert removed and "moved or gone" in removed[-1]["message"]

@@ -434,7 +434,8 @@ def plan_ops(plan, items: list, settings: dict, client, *, exists=os.path.exists
         n += 1
         plan.ops.append(Op(id=f"m{n}", file_id=fid_list[0], src="", dst=str(dst),
                            action="tag" if kind == "tags" else "create", kind=kind,
-                           payload={**payload, "file_ids": list(fid_list), "replace": replace}))
+                           payload={**payload, "file_ids": list(fid_list), "replace": replace,
+                                    "videos": [str(final[f]) for f in fid_list]}))
         files_with.add(fid_list[0])
         return True
 

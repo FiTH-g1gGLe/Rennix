@@ -365,7 +365,8 @@ class Renamer:
                 continue
             op = Op(**od)
             # companions and metadata follow their video: if the video failed, leave them alone
-            if op.kind != "video" and not self._video_ok(batch, op.payload.get("file_ids") or [op.file_id]):
+            if op.kind != "video" and not self._video_ok(batch, op.payload.get("file_ids") or [op.file_id],
+                                                         op.payload.get("videos")):
                 op.state, op.error = "skipped", "Its video wasn't renamed."
                 batch["ops"][i] = asdict(op)
                 self._journal(batch)
@@ -393,12 +394,16 @@ class Renamer:
                     pass
 
     @staticmethod
-    def _video_ok(batch: dict, file_ids: list) -> bool:
-        """True if at least one of these files is in place: renamed, or already named correctly."""
-        for fid in file_ids:
+    def _video_ok(batch: dict, file_ids: list, videos: list | None = None) -> bool:
+        """True if at least one of these files is in place: renamed, or already named correctly.
+
+        For metadata, the video must really be at its final path, so nothing is ever
+        saved into a folder whose film has gone."""
+        for n, fid in enumerate(file_ids):
             video = next((o for o in batch["ops"] if o["file_id"] == fid and o["kind"] == "video"), None)
             if video is None or video["state"] == "done":
-                return True
+                if videos is None or (n < len(videos) and os.path.exists(videos[n])):
+                    return True
         return False
 
     def _backup_dir(self, batch: dict) -> Path:

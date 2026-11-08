@@ -462,6 +462,8 @@ def write(path, tags: dict, cover: Path | None, backup_dir: Path, name: str, *, 
     Returns the record (with ``state`` = done).
     """
     path = Path(path)
+    if not path.is_file():
+        raise EmbedError("RNX-M004", "The video couldn't be found. It may have been moved or renamed.")
     kind = container_of(path)
     if kind is None:
         raise EmbedError("RNX-M002", "Only MKV and MP4 files can have tags written into them.")
