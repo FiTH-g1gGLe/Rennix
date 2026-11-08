@@ -2,6 +2,11 @@
 
 All notable changes to Rennix are listed here.
 
+## Next
+
+### Changed
+- The plot is also written as an MKV `COMMENT` tag, which Explorer add-ons such as Icaros show as Comments.
+
 ## 0.2.1-alpha (November 2026)
 
 ### Fixed

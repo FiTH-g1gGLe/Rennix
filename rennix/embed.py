@@ -285,7 +285,8 @@ def mkv_tags_xml(tags: dict) -> str:
         return f"<Tag><Targets><TargetTypeValue>{level}</TargetTypeValue></Targets>{body}</Tag>" if body else ""
 
     main = [("TITLE", tags.get("title")), ("DATE_RELEASED", tags.get("date")), ("GENRE", tags.get("genres", [])),
-            ("SUMMARY", tags.get("plot")), ("DIRECTOR", tags.get("directors", [])),
+            ("SUMMARY", tags.get("plot")), ("COMMENT", tags.get("plot")),   # COMMENT: what Explorer add-ons show
+            ("DIRECTOR", tags.get("directors", [])),
             ("WRITTEN_BY", tags.get("writers", [])), ("ACTOR", tags.get("cast", [])),
             ("LAW_RATING", tags.get("certification")), ("IMDB", tags.get("imdb")), ("TMDB", tags.get("tmdb"))]
     xml = ['<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE Tags SYSTEM "matroskatags.dtd">\n<Tags>']
