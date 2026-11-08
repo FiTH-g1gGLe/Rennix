@@ -1,0 +1,48 @@
+name: 🐞 Bug report
+description: Something didn't work the way it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping make Rennix better! The quickest way to get a fix is the **diagnostic report**:
+        open the 🐞 console (top right, or **Ctrl + Shift + L**), click **Copy report**, and paste it below.
+        Your TheMovieDB key is hidden automatically.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: "I dropped my TV folder in and two episodes were matched to the wrong show…"
+    validations:
+      required: true
+  - type: input
+    id: code
+    attributes:
+      label: Error code (if you saw one)
+      placeholder: "e.g. RNX-R001"
+  - type: textarea
+    id: files
+    attributes:
+      label: Example file names
+      description: The names of one or two files involved (just the names, not the files).
+      placeholder: "The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv"
+      render: text
+  - type: textarea
+    id: report
+    attributes:
+      label: Diagnostic report
+      description: Paste the text from **Copy report** in the 🐞 console.
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: version
+    attributes:
+      label: Which version?
+      options:
+        - Installer (Rennix Setup)
+        - Portable (.zip)
+        - Running from source
+    validations:
+      required: true

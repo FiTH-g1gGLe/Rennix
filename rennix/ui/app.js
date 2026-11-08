@@ -785,7 +785,8 @@ function settingsPane(sec) {
     case "about": {
       const st = S.stats || {};
       return `<div class="card pad"><div style="display:flex;gap:14px;align-items:center"><svg width="56" height="56"><use href="#i-logo"></use></svg>
-        <div><div class="wordmark" style="font-size:28px">renni<svg width="20" height="20"><use href="#i-x-mark"></use></svg></div><div class="muted">Version ${esc(S.version)} · Rename and organise your movies and TV shows</div></div></div></div>
+        <div><div class="wordmark" style="font-size:28px">renni<svg width="20" height="20"><use href="#i-x-mark"></use></svg></div><div class="muted">Version ${esc(S.version)} · Messy folders in. Perfect library out.</div></div></div>
+        <div class="signature">💡 Inspired by FileBot <span>·</span> 🎬 Directed by g1gGLe <span>·</span> ⌨️ Built by Claude</div></div>
         <div class="card pad"><h4>📊 Your stats</h4><div>${st.renamed || 0} files renamed so far.</div></div>
         <div class="card pad"><h4>🎬 Credits</h4><div class="muted">This product uses the TMDB API but is not endorsed or certified by TMDB.</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn small" data-url="https://www.themoviedb.org/">${icon("open")}TheMovieDB</button><button class="btn small" data-url="https://github.com/FiTH-g1gGLe/Rennix">${icon("open")}Rennix on GitHub</button></div></div>`;

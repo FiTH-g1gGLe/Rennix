@@ -332,3 +332,5 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); outline
 .meta-btn::before { content: "📝"; margin-right: 2px; }
 .meta-btn.on { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .op.meta { color: var(--text-2); }
+.signature { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); color: var(--text-2); font-size: 13px; }
+.signature span { color: var(--muted); margin: 0 6px; }

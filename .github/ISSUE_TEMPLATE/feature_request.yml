@@ -1,0 +1,26 @@
+name: 💡 Feature request
+description: An idea to make Rennix better.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like Rennix to do?
+      placeholder: "It would be great if Rennix could…"
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would it help?
+      description: What are you trying to do today, and what gets in the way?
+  - type: dropdown
+    id: server
+    attributes:
+      label: Which media server do you use?
+      options:
+        - Plex
+        - Jellyfin
+        - Emby
+        - Kodi
+        - None / something else

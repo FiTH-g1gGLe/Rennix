@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Read the FAQ
+    url: https://github.com/FiTH-g1gGLe/Rennix#-faq
+    about: Answers to common questions (where data is kept, Plex, file types and more).
+  - name: 🔒 Report a security problem
+    url: https://github.com/FiTH-g1gGLe/Rennix/blob/main/SECURITY.md
+    about: Please report security problems privately, not as a public issue.
