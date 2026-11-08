@@ -20,7 +20,7 @@ const posterHtml = (url, title, cls) => `<div class="poster ${cls}">${esc(initia
 const S = {
   settings: null, formats: {}, tokens: [], version: "",
   items: new Map(), order: [], previews: {}, selected: null, filter: null,
-  mode: "auto", busy: false, lastBatch: null, platform: "",
+  mode: "auto", busy: false, lastBatch: null, platform: "", view: "list",
 };
 
 // ------------------------------------------------------------------ tooltips
@@ -182,8 +182,14 @@ function renderChips() {
     chip("amber", "amber", "alert", "to check", tip("⚠️ Needs a quick check", "Rennix found a likely match but wants you to confirm.", "Click a row to see the options.")) +
     chip("red", "red", "x-c", "no match", tip("❌ No match", "These won't be renamed until you pick a match.", "Click a row to search manually.")) +
     chip("pending", "", "clock", "searching", tip("🔎 Searching", "Still looking these up.")) +
-    `<span class="status-line" id="status-line"></span>`;
+    `<span class="status-line" id="status-line"></span>` +
+    `<div class="seg view-seg" role="group" aria-label="View">${[
+      ["list", "list", "List", tip("☰ List", "Every file with its old and new name.")],
+      ["posters", "grid", "Posters", tip("🖼️ Posters", "Your matches as a poster wall. Spot wrong matches at a glance.")],
+      ["folders", "tree", "Folders", tip("📁 Folders", "How your library will look after renaming, folder by folder.")],
+    ].map(([k, ic, l, t]) => `<button data-view="${k}" class="${S.view === k ? "on" : ""}" data-tip="${t}">${icon(ic)}${l}</button>`).join("")}</div>`;
   for (const b of $$("#chips [data-filter]")) b.onclick = () => { S.filter = S.filter === b.dataset.filter ? null : b.dataset.filter; renderAll(); };
+  for (const b of $$("#chips [data-view]")) b.onclick = () => setView(b.dataset.view);
   const total = S.order.length;
   const size = S.order.reduce((a, id) => a + ((S.items.get(id) || {}).size || 0), 0);
   $("#count span").textContent = `${total} file${total === 1 ? "" : "s"}${size ? " · " + humanSize(size) : ""}`;
@@ -238,13 +244,66 @@ function rowHtml(it) {
 
 function visible(it) { return !S.filter || (it.status || "pending") === S.filter; }
 
+const EMPTY = `<div style="padding:24px;color:var(--muted)">No files to show.</div>`;
+
+function cardHtml(it) {
+  const st = it.status || "pending";
+  const m = it.match;
+  const label = { green: "Matched", amber: "Check", red: "No match", pending: "Searching…" }[st];
+  const pv = S.previews[it.id] || it.preview || {};
+  const img = m && m.poster_url ? `<img src="${esc(m.poster_large || m.poster_url)}" alt="" loading="lazy" onerror="this.remove()">` : "";
+  const sub = m ? (m.kind === "episode" ? `${sxe(m)}${m.episode_titles && m.episode_titles[0] ? " · " + m.episode_titles[0] : ""}` : (pv.name || "")) : it.name;
+  return `<button class="pcard${S.selected === it.id ? " sel" : ""}" data-id="${esc(it.id)}">
+    <div class="pimg">${esc(m ? initials(m.title) : "?")}${img}<span class="pdot st-${st}"><span class="dot"></span>${label}</span>${m && (st === "green" || st === "amber") ? `<span class="pconf">${pct(it.confidence)}</span>` : ""}</div>
+    <div class="pt">${esc(m ? m.title + (m.year ? ` (${m.year})` : "") : it.name)}</div>
+    <div class="ps">${esc(sub || it.message || "")}</div></button>`;
+}
+
+function foldersHtml(items) {
+  const groups = new Map();
+  for (const it of items) {
+    const pv = S.previews[it.id] || it.preview || {};
+    const key = it.match && pv.folder ? pv.folder : (it.status === "pending" ? "⏳ Still searching" : "🚫 Not renamed");
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(it);
+  }
+  const keys = [...groups.keys()].sort((a, b) => (a.startsWith("⏳") || a.startsWith("🚫")) - (b.startsWith("⏳") || b.startsWith("🚫")) || a.localeCompare(b));
+  return `<div class="tree">${keys.map((k) => {
+    const list = groups.get(k);
+    return `<div class="tgroup"><div class="thead2">${icon("folder")}<span>${esc(k)}</span><span class="count">${list.length} file${list.length === 1 ? "" : "s"}</span></div>
+      ${list.map((it) => {
+        const pv = S.previews[it.id] || it.preview || {};
+        const st = it.status || "pending";
+        const nn = pv.same ? "Already named correctly" : (pv.name || (it.match ? "…" : it.name));
+        return `<div class="tfile${S.selected === it.id ? " sel" : ""}" data-id="${esc(it.id)}"><span class="status st-${st}"><span class="dot"></span></span>
+          <span class="nn">${esc(nn)}</span><span class="on">← ${esc(it.name)}</span></div>`;
+      }).join("")}</div>`;
+  }).join("")}</div>`;
+}
+
+function setView(view) {
+  S.view = view;
+  hideHover();
+  saveSettings({ general: { view } });
+  renderAll();
+}
+
 function renderAll() {
-  const html = S.order.map((id) => S.items.get(id)).filter((it) => it && visible(it)).map(rowHtml).join("");
-  $("#rows").innerHTML = html || `<div style="padding:24px;color:var(--muted)">No files to show.</div>`;
+  const items = S.order.map((id) => S.items.get(id)).filter((it) => it && visible(it));
+  const list = S.view === "list";
+  $(".table").classList.toggle("hidden", !list);
+  $("#altview").classList.toggle("hidden", list);
+  if (list) $("#rows").innerHTML = items.map(rowHtml).join("") || EMPTY;
+  else if (S.view === "posters") $("#altview").innerHTML = items.length ? `<div class="pgrid">${items.map(cardHtml).join("")}</div>` : EMPTY;
+  else $("#altview").innerHTML = items.length ? foldersHtml(items) : EMPTY;
   renderChips();
 }
 
+let renderQueued = false;
+function scheduleRender() { if (renderQueued) return; renderQueued = true; requestAnimationFrame(() => { renderQueued = false; renderAll(); }); }
+
 function renderRow(id) {
+  if (S.view !== "list") { scheduleRender(); return; }
   const it = S.items.get(id);
   if (!it) return;
   const el = $(`#rows .row[data-id="${CSS.escape(id)}"]`);
@@ -254,6 +313,76 @@ function renderRow(id) {
 }
 
 $("#rows").addEventListener("click", (e) => { const r = e.target.closest(".row"); if (r) openSide(r.dataset.id); });
+$("#altview").addEventListener("click", (e) => { const r = e.target.closest("[data-id]"); if (r) { hideHover(); openSide(r.dataset.id); } });
+
+// ------------------------------------------------------------------ quick preview on hover
+const HC = { timer: null, id: null, x: 0, y: 0 };
+function hideHover() { clearTimeout(HC.timer); HC.id = null; $("#hovercard").classList.remove("show"); }
+
+function hoverHtml(it) {
+  const m = it.match;
+  const st = it.status || "pending";
+  const pv = S.previews[it.id] || it.preview || {};
+  const label = { green: "✅ Matched", amber: "⚠️ Needs a quick check", red: "❌ No match", pending: "🔎 Searching…" }[st];
+  const reasons = (it.reasons || []).slice(0, 5).map((r) => {
+    const cls = r.startsWith("✓") ? "ok" : r.startsWith("✗") ? "bad" : r.startsWith("⚠") ? "warn" : "";
+    return `<li class="${cls}">${esc(r)}</li>`;
+  }).join("");
+  if (!m) {
+    const p = it.parsed || {};
+    return `<div class="hp">?</div><div class="hb"><div class="ht">${esc(it.name)}</div>
+      <div class="hm">${esc(label)}</div>
+      <div class="ho">${esc(it.message || "")}</div>
+      ${p.title ? `<div class="hx">Rennix read the name as: <b>${esc(p.title)}</b>${p.year ? ` (${p.year})` : ""}${p.season != null ? ` · Season ${p.season}` : ""}</div>` : ""}
+      <div class="hx">👆 Click to search manually</div></div>`;
+  }
+  const img = m.poster_url ? `<img src="${esc(m.poster_large || m.poster_url)}" alt="" onerror="this.remove()">` : "";
+  const bits = [];
+  bits.push(m.kind === "episode" ? `${icon("tv")}TV · ${esc(sxe(m))}` : `${icon("film")}Movie`);
+  if (m.year) bits.push(esc(String(m.year)));
+  if (m.runtime) bits.push(`${icon("clock")}${esc(fmtMin(m.runtime))}`);
+  if (m.rating) bits.push(`<span class="rate">${icon("star")}${Number(m.rating).toFixed(1)}</span>`);
+  if (m.genres && m.genres.length) bits.push(esc(m.genres.join(", ")));
+  const epTitle = m.kind === "episode" && m.episode_titles && m.episode_titles.filter(Boolean).length ? `<div style="font-weight:600;font-size:13.5px">“${esc(m.episode_titles.filter(Boolean).join(" & "))}”</div>` : "";
+  return `<div class="hp">${esc(initials(m.title))}${img}</div><div class="hb">
+    <div class="ht">${esc(m.title)}${m.year ? ` <span class="muted" style="font-weight:500">(${m.year})</span>` : ""}</div>
+    <div class="hm">${bits.join("<span>·</span>")}</div>
+    ${epTitle}
+    ${m.overview ? `<div class="ho">${esc(m.overview)}</div>` : ""}
+    <div class="hm"><b class="st-${st}">${esc(label)}</b>${st === "green" || st === "amber" ? `<span>· ${pct(it.confidence)} confident</span>` : ""}</div>
+    ${reasons ? `<ul class="hr">${reasons}</ul>` : ""}
+    ${pv.full ? `<div class="hn">${esc(pv.full)}</div>` : pv.same ? `<div class="hx">✓ Already named correctly</div>` : ""}
+    <div class="hx">👆 Click to change the match</div></div>`;
+}
+
+function showHover(id) {
+  const it = S.items.get(id);
+  const card = $("#hovercard");
+  if (!it || (it.status || "pending") === "pending" || S.settings.general.hover_preview === false) return;
+  card.innerHTML = hoverHtml(it);
+  card.classList.add("show");
+  const w = card.offsetWidth, h = card.offsetHeight;
+  let left = HC.x + 18, top = HC.y + 14;
+  if (left + w > window.innerWidth - 12) left = HC.x - w - 18;
+  if (top + h > window.innerHeight - 12) top = window.innerHeight - h - 12;
+  card.style.left = `${Math.max(12, left)}px`; card.style.top = `${Math.max(12, top)}px`;
+}
+
+const hoverZone = $(".table-wrap");
+hoverZone.addEventListener("mousemove", (e) => {
+  HC.x = e.clientX; HC.y = e.clientY;
+  const el = e.target.closest("[data-id]");
+  const onTip = e.target.closest(".status[data-tip]");
+  const id = el && !onTip ? el.dataset.id : null;
+  if (id === HC.id) { if (id && $("#hovercard").classList.contains("show")) showHover(id); return; }
+  hideHover();
+  if (!id || $("#overlay")) return;
+  HC.id = id;
+  HC.timer = setTimeout(() => showHover(id), 450);
+});
+hoverZone.addEventListener("mouseleave", hideHover);
+hoverZone.addEventListener("scroll", hideHover, true);
+document.addEventListener("mousedown", hideHover);
 $("#rows").addEventListener("keydown", (e) => { if (e.key === "Enter") { const r = e.target.closest(".row"); if (r) openSide(r.dataset.id); } });
 
 // ------------------------------------------------------------------ side panel (fix or change a match)
@@ -504,6 +633,7 @@ function settingsPane(sec) {
       <div class="card pad"><h4>Your media server</h4><div class="desc">Sets the naming templates that suit it.</div>${choices("general", "media_server", [["plex", "🟧", "Plex", "Plex layout"], ["jellyfin", "🟪", "Jellyfin", "Jellyfin layout"], ["emby", "🟩", "Emby", "Emby layout"], ["kodi", "🟦", "Kodi", "Kodi layout"], ["none", "📁", "None", "Simple names"]])}</div>
       <div class="card">${selectRow("general", "default_mode", "Default mode", "What dropped files are treated as.", [["auto", "✨ Auto"], ["movie", "🎬 Movies"], ["tv", "📺 TV Shows"]])}
       ${selectRow("general", "text_size", "Text size", "Make everything bigger or smaller.", [[90, "Small"], [100, "Normal"], [110, "Large"], [125, "Extra large"]])}
+      ${sw("general", "hover_preview", "Quick preview on hover", "Shows the poster, plot and match details when you rest the mouse on a file.", "👀")}
       ${sw("general", "reduce_motion", "Reduce motion", "Turns off sliding and fading animations.", "🧘")}</div>`;
     case "library": return `
       <div class="card pad"><h4>Destination folders</h4>
@@ -978,6 +1108,7 @@ async function init() {
   S.settings = st.settings; S.formats = st.formats; S.tokens = st.tokens; S.version = st.version; S.stats = st.stats; S.platform = st.platform;
   applyLook();
   setConsoleVisible(S.settings.general.show_console !== false);
+  S.view = S.settings.general.view || "list";
   restartPolling();
   setMode(S.settings.general.default_mode || "auto");
   fillFormatSelects();

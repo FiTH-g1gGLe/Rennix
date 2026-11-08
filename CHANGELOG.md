@@ -2,6 +2,12 @@
 
 All notable changes to Rennix are listed here.
 
+## 0.1.3-alpha (November 2026)
+
+### Added
+- 👀 Quick preview: rest the mouse on a file to see its poster, plot, runtime, rating, genres, why it matched, and exactly where it will go. Can be turned off in Settings → General.
+- New views above the list: ☰ **List**, 🖼️ **Posters** (a poster wall to spot wrong matches at a glance) and 📁 **Folders** (how your library will look after renaming). Rennix remembers your choice.
+
 ## 0.1.2-alpha (November 2026)
 
 ### Fixed

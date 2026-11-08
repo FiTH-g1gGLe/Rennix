@@ -110,7 +110,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "reduce_motion": False,
         "first_run_done": False,
         "media_server": "plex",     # plex | jellyfin | emby | kodi | none
-        "show_console": True,       # the 🐞 console button (on for alpha and beta builds)
+        "show_console": True,
+        "view": "list",             # list | posters | folders
+        "hover_preview": True,      # quick-preview card when hovering a file       # the 🐞 console button (on for alpha and beta builds)
     },
     "library": {
         "movies_dir": "",

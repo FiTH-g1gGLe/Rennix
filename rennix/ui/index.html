@@ -40,6 +40,10 @@
   <symbol id="i-csv" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5M9 13h6M9 17h6"></path></symbol>
   <symbol id="i-bug" viewBox="0 0 24 24"><rect x="7" y="6" width="10" height="14" rx="5"></rect><path d="M12 6V3M9 4l1 2M15 4l-1 2M7 11H3M21 11h-4M7 16H4M20 16h-3M12 10v10"></path></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"></path></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="9" rx="1.5"></rect><rect x="3" y="15" width="7" height="6" rx="1.5"></rect><rect x="14" y="15" width="7" height="6" rx="1.5"></rect></symbol>
+  <symbol id="i-tree" viewBox="0 0 24 24"><path d="M3 5h6l2 2h10v4H3zM7 11v8h4M7 15h4"></path><rect x="11" y="13" width="10" height="4" rx="1"></rect><rect x="11" y="17" width="10" height="4" rx="1"></rect></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"></path></symbol>
   <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"></path><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"></path></symbol>
 </svg>
 
@@ -103,6 +107,7 @@
         <div class="thead" role="row"><div>Status</div><div>Current name</div><div></div><div>New name</div><div>Matched to</div></div>
         <div id="rows"></div>
       </div>
+      <div class="altview hidden" id="altview"></div>
     </div>
     <div class="footer">
       <div class="left">
@@ -124,6 +129,7 @@
 <section class="console hidden" id="console" aria-label="Console"></section>
 <div id="modal-root"></div>
 <div id="tip" role="tooltip"></div>
+<div id="hovercard" aria-hidden="true"></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <script src="app.js"></script>
 </body>

@@ -85,10 +85,14 @@ class Match:
     episode_titles: list = field(default_factory=list)
     air_date: str = ""
     absolute: int | None = None
+    overview: str = ""           # plot, or the episode's synopsis
+    rating: float | None = None  # TheMovieDB score out of 10
+    genres: list = field(default_factory=list)
 
     def to_dict(self) -> dict:
         d = asdict(self)
         d["poster_url"] = poster_url(self.poster)
+        d["poster_large"] = poster_url(self.poster, "w342")
         return d
 
 
@@ -390,7 +394,9 @@ class Identifier:
             year=_year(d.get("release_date")), original_title=d.get("original_title") or "",
             imdb_id=d.get("imdb_id") or (d.get("external_ids") or {}).get("imdb_id") or "",
             poster=d.get("poster_path") or "", collection=coll.get("name") or "",
-            runtime=d.get("runtime") or None,
+            runtime=d.get("runtime") or None, overview=d.get("overview") or "",
+            rating=d.get("vote_average") or None,
+            genres=[g.get("name") for g in d.get("genres") or [] if g.get("name")][:3],
         )
 
     def _movie_hypotheses(self, p: Parsed) -> list[tuple[str, int | None]]:
@@ -618,6 +624,9 @@ class Identifier:
             poster=show.get("poster_path") or "", season=season, episodes=eps,
             episode_titles=titles, air_date=first.get("air_date") or "",
             runtime=first.get("runtime") or None, absolute=p.absolute,
+            overview=first.get("overview") or show.get("overview") or "",
+            rating=first.get("vote_average") or show.get("vote_average") or None,
+            genres=[g.get("name") for g in show.get("genres") or [] if g.get("name")][:3],
         )
 
     def _show_hypotheses(self, group: list[Identified]) -> list[tuple[str, int | None]]:

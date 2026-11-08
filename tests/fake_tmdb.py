@@ -125,6 +125,9 @@ class FakeTMDb:
                 d["imdb_id"] = m[7]
                 d["belongs_to_collection"] = {"name": m[6]} if m[6] else None
                 d["alternative_titles"] = {"titles": [{"title": t} for t in m[8]]}
+                d["overview"] = f"Test plot summary for {m[1]}, used by Rennix's offline tests."
+                d["vote_average"] = 7.4
+                d["genres"] = [{"name": "Action"}, {"name": "Science Fiction"}]
                 return d
         raise TMDbError("404", "TheMovieDB has no entry for that.")
 
