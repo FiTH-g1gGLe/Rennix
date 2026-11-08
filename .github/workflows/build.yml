@@ -127,11 +127,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           V="${{ steps.ver.outputs.version }}"
+          python scripts/release_notes.py dist/notes
           gh release delete latest-test --cleanup-tag --yes 2>/dev/null || true
           if gh release view "v$V" >/dev/null 2>&1; then
             echo "Release v$V already exists; this build is in the Actions artifacts. Bump the version to publish a new release."
           else
             gh release create "v$V" --target "$GITHUB_SHA" --title "Rennix $V" \
-              --notes-file CHANGELOG.md \
+              --notes-file "dist/notes/$V.md" \
               dist/Rennix-Setup-*.exe dist/Rennix-*-Windows-Portable.zip
           fi
+          # keep every release's notes in step with CHANGELOG.md (just that version's changes)
+          for f in dist/notes/*.md; do
+            v="$(basename "$f" .md)"
+            if gh release view "v$v" >/dev/null 2>&1; then gh release edit "v$v" --notes-file "$f" >/dev/null && echo "notes updated: v$v"; fi
+          done

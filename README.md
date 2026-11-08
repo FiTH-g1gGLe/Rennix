@@ -33,11 +33,14 @@ Nothing changes until you've checked the preview, and every rename can be undone
 | 🚦 **Honest confidence** | Green when it's sure, amber when it wants you to check, red when it can't tell. Hover any row to see why |
 | 🛡️ **Never guesses silently** | Remakes like *Dune* (1984 vs 2021) and *The Office* (US vs UK) are caught, not renamed wrongly |
 | 👆 **Manual override** | Change any match, search with posters, and Rennix remembers your choice next time |
+| 👀 **Quick preview** | Rest the mouse on a file to see its poster, plot, runtime, rating, why it matched and exactly where it will go |
+| 🖼️ **Three views** | A detailed list, a poster wall to spot wrong matches at a glance, and a folder view of how your library will look |
 | 🏷️ **Naming templates** | Plex, Jellyfin, Emby and Kodi out of the box, or build your own with a live preview |
 | 💬 **Brings the extras along** | Subtitles, posters and `.nfo` files are renamed with their video |
 | 🔗 **Move, copy or hardlink** | Hardlinks give your library proper names while your downloads keep seeding, using no extra space |
 | ↩️ **Undo anything** | Every batch is kept in History and can be reversed in one click |
 | 💥 **Crash-safe** | A rename journal means a crash or power cut never leaves files half-renamed |
+| 🐞 **Clear error codes** | A built-in console logs everything, and every problem has a code (like `RNX-R001`) with a plain explanation. One click copies a report for support |
 | 📺 **TV done properly** | Double episodes, specials, anime numbering and daily shows by air date |
 | 📝 **Metadata (optional)** | Posters, logos, season posters, episode thumbnails and `.nfo` files, named for your media server. Every item has its own switch, and it's all off until you turn it on |
 | 🏷️ **Tags inside the file (optional)** | Title, plot, cast and a cover written into MKV and MP4 files. Only the header changes; every write is backed up, checked against the original video data and can be undone |
@@ -46,22 +49,60 @@ Nothing changes until you've checked the preview, and every rename can be undone
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/start.png" alt="First launch"></td>
+    <td><img src="docs/screenshots/hover.png" alt="Quick preview when hovering a file"></td>
+    <td><img src="docs/screenshots/posters.png" alt="Poster wall view"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>👀 Hover any file for a quick preview</b></td>
+    <td align="center"><b>🖼️ Poster wall: spot wrong matches at a glance</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/folders.png" alt="Folder view"></td>
+    <td><img src="docs/screenshots/metadata.png" alt="Metadata settings"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>📁 See your library before anything moves</b></td>
+    <td align="center"><b>📝 Choose exactly which metadata to save</b></td>
+  </tr>
+  <tr>
     <td><img src="docs/screenshots/match-panel.png" alt="Fixing an unsure match"></td>
-  </tr>
-  <tr>
-    <td align="center"><b>Drop a folder to start</b></td>
-    <td align="center"><b>Pick the right match when Rennix isn't sure</b></td>
-  </tr>
-  <tr>
     <td><img src="docs/screenshots/format-editor.png" alt="Naming format editor"></td>
-    <td><img src="docs/screenshots/settings.png" alt="Settings"></td>
   </tr>
   <tr>
-    <td align="center"><b>Build your own naming format</b></td>
-    <td align="center"><b>Library folders, hardlinks and more</b></td>
+    <td align="center"><b>👆 Pick the right match when Rennix isn't sure</b></td>
+    <td align="center"><b>🏷️ Build your own naming format</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/console.png" alt="Console with error codes"></td>
+    <td><img src="docs/screenshots/start.png" alt="First launch"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>🐞 Console with clear error codes</b></td>
+    <td align="center"><b>📂 Drop a folder to start</b></td>
   </tr>
 </table>
+
+## 📝 Metadata
+
+Turn on **📝 Metadata** in the bottom bar (or **Settings → Metadata**) and Rennix saves details alongside every rename. Files that are already named correctly get them too, without being renamed. Every item has its own switch:
+
+| | Item | Plex | Jellyfin · Emby · Kodi |
+| --- | --- | :---: | :---: |
+| Next to the video | 🖼️ Poster | ✅ | ✅ |
+| | 🏷️ Logo | ✅ | ✅ |
+| | 📝 `.nfo` info file (plot, cast, director, ratings, IDs) | ❌ ignored by Plex | ✅ |
+| | 📺 Season posters | ✅ | ✅ |
+| | 🎞️ Episode thumbnails | ✅ | ✅ |
+| Inside the file | 🏷️ Tags (title, year, plot, genres, director, cast, age rating) | MP4 only | ✅ |
+| | 🖼️ Embedded cover | | ✅ |
+
+Artwork is named the way each media server expects. Existing posters and `.nfo` files are kept unless you turn on **Replace existing**, and Undo removes everything Rennix saved.
+
+> [!TIP]
+> **Plex users:** turn on **Use local assets** in your library's settings so Plex picks up the posters and logos.
+
+> [!NOTE]
+> Windows Explorer's **Properties → Details** only shows the title for MKV files. The other tags are there (VLC, MediaInfo and media servers read them); free add-ons such as Icaros can show more in Explorer.
 
 ## 📥 Download
 
@@ -94,10 +135,13 @@ Mac and Linux builds are planned. Until then, run from source (below); the code 
 
 - [x] Identification engine, naming templates and custom formats
 - [x] Safe renaming with crash journal and undo
-- [x] Windows installer and portable builds
-- [ ] Real-world testing and fixes *(in progress)*
-- [ ] File fingerprinting for badly named files
+- [x] Windows installer, portable version and auto-update check
+- [x] Quick preview, poster wall and folder views
+- [x] Console with error codes and one-click support reports
 - [x] **Version 2:** posters, logos, `.nfo` files and tags inside MKV and MP4 files
+- [ ] Real-world testing and fixes *(in progress)*
+- [ ] Artwork picker and a per-file metadata preview
+- [ ] File fingerprinting for badly named files
 - [ ] Library health check, watch folders, Plex and Jellyfin refresh
 - [ ] Mac and Linux builds
 
