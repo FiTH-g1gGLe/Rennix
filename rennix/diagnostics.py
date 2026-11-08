@@ -58,6 +58,7 @@ CODES: dict[str, tuple[str, str]] = {
     "RNX-C001": ("Settings couldn't be read, so defaults are in use.", "A copy of the damaged file was kept for support."),
     "RNX-C002": ("A Rennix data file couldn't be saved.", "Check there's free space and the drive is writable."),
     "RNX-W001": ("Something went wrong in the app window.", "Copy the report for support."),
+    "RNX-W002": ("The app window couldn't open.", "Use the installer, or unblock the downloaded zip (Properties → Unblock) and extract it again."),
     "RNX-X001": ("Unexpected error. This is a bug.", "Please copy the report and send it so it can be fixed."),
 }
 

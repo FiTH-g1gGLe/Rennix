@@ -2,6 +2,12 @@
 
 All notable changes to Rennix are listed here.
 
+## 0.1.2-alpha (November 2026)
+
+### Fixed
+- The portable version could fail to open with "Failed to resolve Python.Runtime.Loader.Initialize". Windows marks files extracted from a downloaded zip, and the window component refused to load them. Rennix now clears that mark from its own files when it starts.
+- If the app window ever can't open, Rennix now shows a clear message with the fix and error code `RNX-W002`, instead of a raw error.
+
 ## 0.1.1-alpha (November 2026)
 
 ### Added
