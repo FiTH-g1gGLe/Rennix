@@ -222,3 +222,6 @@ __marimo__/
 # Rennix
 rennix/_bundled.py
 *.rennix-part
+
+# downloaded by the build
+/tools/

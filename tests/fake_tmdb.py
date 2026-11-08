@@ -162,3 +162,70 @@ class FakeTMDb:
                         "air_date": s.get("dated", {}).get((season_number, n), ""),
                         "runtime": s["runtime"]})
         return {"season_number": season_number, "episodes": eps}
+
+
+# ---------------------------------------------------------------- metadata (version 2)
+
+FAKE_JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 2000 + b"\xff\xd9"
+FAKE_PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 2000
+
+
+def _credits():
+    return {"cast": [{"name": "Keanu Reeves", "character": "Neo", "order": 0, "profile_path": "/k.jpg"},
+                     {"name": "Carrie-Anne Moss", "character": "Trinity", "order": 1}],
+            "crew": [{"name": "Lana Wachowski", "job": "Director"}, {"name": "Lilly Wachowski", "job": "Director"},
+                     {"name": "Lana Wachowski", "job": "Screenplay"}]}
+
+
+def _movie_details(self, movie_id):
+    d = self.movie(movie_id)
+    d.update(credits=_credits(), tagline="Welcome to the Real World.", vote_count=26000,
+             production_companies=[{"name": "Warner Bros. Pictures"}], production_countries=[{"name": "United States of America"}],
+             release_dates={"results": [{"iso_3166_1": "GB", "release_dates": [{"certification": "15", "type": 3}]},
+                                        {"iso_3166_1": "US", "release_dates": [{"certification": "R", "type": 3}]}]},
+             images={"logos": [{"file_path": "/logo_de.png", "iso_639_1": "de", "vote_average": 9},
+                               {"file_path": "/logo_en.png", "iso_639_1": "en", "vote_average": 5},
+                               {"file_path": "/logo.svg", "iso_639_1": "en", "vote_average": 10}]},
+             videos={"results": [{"site": "YouTube", "type": "Trailer", "key": "abc123", "official": True}]},
+             external_ids={"imdb_id": d.get("imdb_id")})
+    return d
+
+
+def _tv_details(self, tv_id):
+    d = self.tv(tv_id)
+    for s in d["seasons"]:
+        s["poster_path"] = f"/s{tv_id}_{s['season_number']}.jpg"
+    d.update(overview="A chemistry teacher turns to crime.", genres=[{"name": "Drama"}], networks=[{"name": "AMC"}],
+             vote_average=8.9, vote_count=15000, status="Ended", credits=_credits(),
+             content_ratings={"results": [{"iso_3166_1": "GB", "rating": "18"}]},
+             images={"logos": [{"file_path": f"/tlogo{tv_id}.png", "iso_639_1": "en", "vote_average": 5}]},
+             external_ids={"imdb_id": d["external_ids"]["imdb_id"], "tvdb_id": 81189})
+    return d
+
+
+_plain_season = FakeTMDb.season
+
+
+def _season(self, tv_id, season_number):
+    d = _plain_season(self, tv_id, season_number)
+    d["poster_path"] = f"/s{tv_id}_{season_number}.jpg"
+    for e in d["episodes"]:
+        e.update(id=tv_id * 1000 + e["episode_number"], season_number=season_number,
+                 overview=f"Plot of {e['name']}.", still_path=f"/e{tv_id}_{season_number}_{e['episode_number']}.jpg",
+                 vote_average=8.0, crew=[{"name": "Vince Gilligan", "job": "Director"}],
+                 guest_stars=[{"name": "Guest Star", "character": "Someone", "order": 0}])
+    return d
+
+
+def _download(self, url, dest):
+    self.calls.append(("download", url))
+    if getattr(self, "fail_downloads", False):
+        raise TMDbError("down", code="RNX-M009")
+    with open(dest, "wb") as fh:
+        fh.write(FAKE_PNG if url.endswith(".png") else FAKE_JPEG)
+
+
+FakeTMDb.movie_details = _movie_details
+FakeTMDb.tv_details = _tv_details
+FakeTMDb.season = _season
+FakeTMDb.download = _download

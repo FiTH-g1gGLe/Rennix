@@ -189,6 +189,51 @@ class TMDbClient:
     def episode_group(self, group_id: str) -> dict:
         return self._get(f"/tv/episode_group/{group_id}")
 
+    # full details for saving metadata (separate from the lighter identify calls)
+    def _image_langs(self) -> str:
+        lang = (self.language or "en").split("-")[0]
+        return ",".join(dict.fromkeys([lang, "en", "null"]))
+
+    def movie_details(self, movie_id: int) -> dict:
+        return self._get(f"/movie/{movie_id}", {
+            "append_to_response": "credits,release_dates,images,videos,external_ids",
+            "include_image_language": self._image_langs()})
+
+    def tv_details(self, tv_id: int) -> dict:
+        return self._get(f"/tv/{tv_id}", {
+            "append_to_response": "credits,content_ratings,images,external_ids",
+            "include_image_language": self._image_langs()})
+
+    def download(self, url: str, dest, max_bytes: int = 30 * 1024 * 1024) -> None:
+        """Download an image to ``dest`` (used for posters, logos and thumbnails)."""
+        if self.offline:
+            raise TMDbError("offline", code="RNX-T006")
+        if self.session is None:
+            raise TMDbError("requests missing", code="RNX-X001")
+        last = None
+        for attempt in range(3):
+            try:
+                with self._sem:
+                    r = self.session.get(url, timeout=self.timeout, stream=True,
+                                         headers={"Accept": "image/*"})
+                    if r.status_code != 200:
+                        last = TMDbError(f"HTTP {r.status_code}", code="RNX-M009")
+                        if r.status_code < 500:
+                            break
+                        continue
+                    got = 0
+                    with open(dest, "wb") as fh:
+                        for chunk in r.iter_content(64 * 1024):
+                            got += len(chunk)
+                            if got > max_bytes:
+                                raise TMDbError("image too large", code="RNX-M009")
+                            fh.write(chunk)
+                    return
+            except requests.RequestException as exc:
+                last = TMDbError(str(exc), code="RNX-M009")
+                time.sleep(1.0 * (attempt + 1))
+        raise last or TMDbError("download failed", code="RNX-M009")
+
     def check(self) -> tuple[bool, str]:
         """Quick 'can I reach TMDb with this key?' test for first launch."""
         try:

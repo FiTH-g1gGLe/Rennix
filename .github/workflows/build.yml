@@ -27,7 +27,19 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install requests platformdirs guessit rapidfuzz send2trash pytest
+          pip install requests platformdirs guessit rapidfuzz send2trash mutagen pytest
+      - name: Install video tools (for the real-file metadata tests)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg mkvtoolnix
+          elif [ "$RUNNER_OS" == "macOS" ]; then brew install ffmpeg mkvtoolnix
+          else choco install ffmpeg -y --no-progress; fi
+      - name: Get mkvpropedit (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./installer/get-mkvpropedit.ps1
+      - name: Check the tools are found
+        run: python -c "from rennix import embed; import shutil; print('mkvpropedit:', embed.find_mkvpropedit()); print('mutagen:', embed.have_mutagen()); print('ffmpeg:', shutil.which('ffmpeg'))"
       - name: Run tests
         run: python -m pytest -q
 
@@ -45,6 +57,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+      - name: Get mkvpropedit (shipped for writing MKV tags)
+        shell: pwsh
+        run: ./installer/get-mkvpropedit.ps1
       - name: Bundle the TheMovieDB token (from the repo secret, never committed)
         shell: python
         env:
@@ -68,6 +83,9 @@ jobs:
           --add-data "rennix/ui;rennix/ui"
           --collect-data guessit --collect-data babelfish --collect-data rebulk
           --collect-binaries pymediainfo
+          --add-binary "tools/mkvpropedit.exe;tools"
+          --add-data "tools/MKVToolNix-NOTICE.txt;tools"
+          --hidden-import mutagen.mp4
           --hidden-import rennix._bundled
           run_rennix.py
       - name: Smoke test the build
@@ -75,6 +93,8 @@ jobs:
         run: |
           if (!(Test-Path dist/Rennix/Rennix.exe)) { throw "Rennix.exe missing" }
           if (!(Test-Path dist/Rennix/_internal/rennix/ui/index.html)) { throw "UI files missing" }
+          & dist/Rennix/_internal/tools/mkvpropedit.exe --version
+          if ($LASTEXITCODE -ne 0) { throw "bundled mkvpropedit doesn't run" }
       - name: Portable zip
         shell: pwsh
         run: |

@@ -58,6 +58,7 @@ class Op:
     code: str = ""
     created_dirs: list = field(default_factory=list)
     replaced_to_trash: bool = False
+    payload: dict = field(default_factory=dict)   # metadata: what to save and how to undo it
 
 
 @dataclass
@@ -249,9 +250,12 @@ def _resolve_clash(src: Path, dst: Path, fid: str, taken: dict, policy: str, exi
 # --------------------------------------------------------------------------- execution
 
 class Renamer:
+    default_tag_writer = None
+
     def __init__(self, paths, settings: dict | None = None):
         self.paths = paths
         self.settings = settings or {}
+        self.tag_writer = Renamer.default_tag_writer   # tests swap in a stand-in for mkvpropedit / mutagen
 
     # ----------------------------------------------------------------- files
     def _make_parents(self, dst: Path) -> list[str]:
@@ -360,14 +364,15 @@ class Renamer:
             if od["state"] != "pending":
                 continue
             op = Op(**od)
-            # a companion follows its video: if the video failed, leave it alone
-            if op.kind == "companion":
-                video = next((o for o in batch["ops"] if o["file_id"] == op.file_id and o["kind"] == "video"), None)
-                if video and video["state"] != "done":
-                    op.state, op.error = "skipped", "Its video wasn't renamed."
-                    batch["ops"][i] = asdict(op)
-                    self._journal(batch)
-                    continue
+            # companions and metadata follow their video: if the video failed, leave them alone
+            if op.kind != "video" and not self._video_ok(batch, op.payload.get("file_ids") or [op.file_id]):
+                op.state, op.error = "skipped", "Its video wasn't renamed."
+                batch["ops"][i] = asdict(op)
+                self._journal(batch)
+                continue
+            if op.kind in ("meta", "tags"):
+                self._do_meta(batch, i, op)
+                continue
             try:
                 self._do(op)
                 op.state = "done"
@@ -387,19 +392,71 @@ class Renamer:
                 except Exception:
                     pass
 
+    @staticmethod
+    def _video_ok(batch: dict, file_ids: list) -> bool:
+        """True if at least one of these files is in place: renamed, or already named correctly."""
+        for fid in file_ids:
+            video = next((o for o in batch["ops"] if o["file_id"] == fid and o["kind"] == "video"), None)
+            if video is None or video["state"] == "done":
+                return True
+        return False
+
+    def _backup_dir(self, batch: dict) -> Path:
+        return Path(self.paths.backups) / batch["id"]
+
+    def _do_meta(self, batch: dict, i: int, op: Op) -> None:
+        from . import embed, metadata
+        try:
+            if op.kind == "meta":
+                metadata.place(op, self._backup_dir(batch))
+                log.info("Saved %s: %s", metadata.LABELS.get(op.payload.get("what"), "file"), op.dst)
+            else:
+                p = op.payload
+
+                def ready(record):
+                    # the backup exists; record it in the crash journal before the file is touched
+                    p["record"] = record
+                    batch["ops"][i] = asdict(op)
+                    self._journal(batch)
+
+                cover = Path(p["cover"]) if p.get("cover") else None
+                p["record"] = embed.write(op.dst, p.get("tags"), cover, self._backup_dir(batch), op.id,
+                                          safe_copy=bool(p.get("safe_copy")), replace_cover=bool(p.get("replace")),
+                                          on_ready=ready, _writer=self.tag_writer)
+                log.info("Tags written into %s (%s)", Path(op.dst).name, p["record"]["mode"])
+            op.state = "done"
+        except embed.EmbedError as exc:
+            op.state, op.code, op.error = "failed", exc.code, friendly(exc.code, exc.message)
+            op.payload.pop("record", None)
+            log_event(log, logging.ERROR, exc.code, exc.message, file=op.dst)
+        except FileExistsError:
+            op.state, op.code, op.error = "skipped", "RNX-M011", friendly("RNX-M011")
+            log.info("Kept existing %s", op.dst)
+        except OSError as exc:
+            op.code = _error_code(exc, "copy")
+            op.state, op.error = "failed", friendly(op.code)
+            log_event(log, logging.ERROR, op.code, f"Couldn't save {op.dst}: {exc}", exc)
+        batch["ops"][i] = asdict(op)
+        self._journal(batch)
+
     def _close(self, batch: dict) -> dict:
         if self.settings.get("library", {}).get("tidy_empty_folders", True):
             batch["removed_dirs"] = self._tidy_sources(batch)
         done = [o for o in batch["ops"] if o["state"] == "done"]
         failed = [o for o in batch["ops"] if o["state"] == "failed"]
         batch["finished"] = _dt.datetime.now().isoformat(timespec="seconds")
+        meta_done = [o for o in done if o["kind"] in ("meta", "tags")]
         batch["summary"] = {
             "done": len([o for o in done if o["kind"] == "video"]),
             "companions": len([o for o in done if o["kind"] == "companion"]),
             "failed": len(failed),
+            "meta": len({f for o in meta_done for f in (o.get("payload", {}).get("file_ids") or [o["file_id"]])}),
+            "meta_items": len(meta_done),
         }
         if done:
             atomic_write_json(self.paths.history / f"{batch['id']}.json", batch)
+        else:
+            shutil.rmtree(self._backup_dir(batch), ignore_errors=True)
         try:
             self.paths.journal_file.unlink()
         except FileNotFoundError:
@@ -407,7 +464,7 @@ class Renamer:
         log.info("Batch %s finished: %s renamed, %s extra files, %s failed", batch["id"],
                  batch["summary"]["done"], batch["summary"]["companions"], batch["summary"]["failed"])
         return {"batch_id": batch["id"], **batch["summary"],
-                "errors": [{"file_id": o["file_id"], "src": o["src"], "message": o["error"],
+                "errors": [{"file_id": o["file_id"], "src": o["src"] or o["dst"], "message": o["error"],
                             "code": o.get("code", "")} for o in failed]}
 
     def _tidy_sources(self, batch: dict) -> list[str]:
@@ -438,8 +495,26 @@ class Renamer:
         if not batch:
             return {"batch_id": None, "done": 0, "companions": 0, "failed": 0, "errors": []}
         log_event(log, logging.WARNING, "RNX-U002", f"Recovering an interrupted batch ({mode})", batch=batch["id"])
+        from . import embed, metadata
         for od in batch["ops"]:
             if od["state"] != "pending":
+                continue
+            if od["kind"] == "meta":
+                metadata.cleanup_part(od)
+                if metadata.is_ours(od):
+                    od["state"] = "done"
+                continue
+            if od["kind"] == "tags":
+                record = od.get("payload", {}).get("record")
+                if record:
+                    try:
+                        if embed.recover(od["dst"], record) == "done":
+                            od["state"] = "done"
+                        else:
+                            od["payload"].pop("record", None)
+                            log_event(log, logging.WARNING, "RNX-U003", file=od["dst"])
+                    except (OSError, embed.EmbedError) as exc:
+                        log_event(log, logging.ERROR, "RNX-U001", f"Couldn't repair {od['dst']}: {exc}", exc)
                 continue
             src, dst = Path(od["src"]), Path(od["dst"])
             part = dst.with_name(dst.name + ".rennix-part")
@@ -486,18 +561,42 @@ class Renamer:
                 try:
                     if _dt.datetime.fromisoformat(created) < cutoff:
                         f.unlink()
+                        shutil.rmtree(Path(self.paths.backups) / b["id"], ignore_errors=True)
                         continue
                 except ValueError:
                     pass
             vids = [o for o in b["ops"] if o["kind"] == "video"]
+            metas = [o for o in b["ops"] if o["kind"] in ("meta", "tags")]
             out.append({
                 "id": b["id"], "created": created, "label": b.get("label", ""),
                 "count": len([o for o in vids if o["state"] == "done"]),
                 "undone": len([o for o in vids if o["state"] == "undone"]),
-                "ops": [{k: o[k] for k in ("id", "file_id", "src", "dst", "kind", "state", "action")}
+                "meta": len({f for o in metas if o["state"] == "done"
+                             for f in ((o.get("payload") or {}).get("file_ids") or [o["file_id"]])}),
+                "meta_undone": len({f for o in metas if o["state"] == "undone"
+                                    for f in ((o.get("payload") or {}).get("file_ids") or [o["file_id"]])}),
+                "can_undo": any(o["state"] == "done" for o in b["ops"]),
+                "ops": [{**{k: o[k] for k in ("id", "file_id", "src", "dst", "kind", "state", "action")},
+                         "what": (o.get("payload") or {}).get("what", "")}
                         for o in b["ops"]],
             })
         return out
+
+    def _undo_meta(self, od: dict, errors: list) -> bool:
+        from . import embed, metadata
+        try:
+            if od["kind"] == "meta":
+                metadata.remove(od)
+            else:
+                embed.undo(od["dst"], od["payload"]["record"])
+            return True
+        except embed.EmbedError as exc:
+            msg = friendly(exc.code, exc.message)
+        except (OSError, KeyError) as exc:
+            msg = friendly("RNX-U001", str(exc))
+        log_event(log, logging.WARNING, "RNX-U001", f"Couldn't undo metadata: {msg}", file=od["dst"])
+        errors.append({"file_id": od["file_id"], "src": od["dst"], "code": "RNX-U001", "message": msg})
+        return False
 
     def undo(self, batch_id: str, op_ids: list[str] | None = None) -> dict:
         """Reverse a batch (or some of its files). Originals go back where they were."""
@@ -515,6 +614,11 @@ class Renamer:
         undone, videos, errors = 0, 0, []
         for od in reversed(batch["ops"]):
             if od["state"] != "done" or (wanted and od["id"] not in wanted):
+                continue
+            if od["kind"] in ("meta", "tags"):
+                if self._undo_meta(od, errors):
+                    od["state"] = "undone"
+                    undone += 1
                 continue
             src, dst = Path(od["src"]), Path(od["dst"])
             try:
@@ -547,5 +651,7 @@ class Renamer:
                 errors.append({"file_id": od["file_id"], "src": od["dst"], "code": "RNX-U001",
                                "message": friendly("RNX-U001", "Couldn't put a file back: " + friendly(code))})
         atomic_write_json(f, batch)
+        if not any(o["state"] == "done" for o in batch["ops"]):
+            shutil.rmtree(self._backup_dir(batch), ignore_errors=True)
         log.info("Undo of batch %s: %s file(s) put back, %s problem(s)", batch_id, undone, len(errors))
         return {"batch_id": batch_id, "undone": undone, "videos": videos, "errors": errors}

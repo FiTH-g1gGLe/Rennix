@@ -6,6 +6,7 @@ guessit>=3.8
 rapidfuzz>=3.0
 pymediainfo>=6.0
 send2trash>=1.8
+mutagen>=1.47
 
 # Development
 pytest>=8.0

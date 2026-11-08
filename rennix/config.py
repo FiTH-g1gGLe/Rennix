@@ -98,6 +98,10 @@ class Paths:
         return self.data / "logs"
 
     @property
+    def backups(self) -> Path:
+        return self.data / "backups"
+
+    @property
     def posters(self) -> Path:
         return self.cache / "posters"
 
@@ -143,6 +147,20 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "confirm_before_rename": True,
         "skip_amber": True,
         "history_days": 365,         # 0 = forever
+    },
+    "metadata": {
+        "enabled": False,            # the main "Save metadata" switch
+        "configured": False,         # True once the media-server starting choices were applied
+        "poster": True,              # next to the video
+        "logo": False,
+        "nfo": False,
+        "season_posters": False,
+        "episode_thumbs": False,
+        "tags": False,               # inside the video file: never on unless chosen
+        "cover": False,
+        "max_safety": False,         # always use a safe copy when writing inside files
+        "replace_existing": False,   # replace posters / .nfo files already there
+        "mkvpropedit": "",           # optional path to a different mkvpropedit
     },
     "notifications": {"on_finish": True},
     "integrations": {"explorer_menu": False},

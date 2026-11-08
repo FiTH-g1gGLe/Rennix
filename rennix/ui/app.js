@@ -128,7 +128,7 @@ const handlers = {
     const c = counts();
     if (d.count) toast(`✅ ${c.green} matched · ⚠️ ${c.amber} to check · ❌ ${c.red} no match`);
   },
-  rename_progress(p) { setStatus(`Renaming ${p.done} of ${p.total}…`, true, p.done / p.total); },
+  rename_progress(p) { setStatus(p.meta ? `Saving metadata ${p.done} of ${p.total}…` : `Renaming ${p.done} of ${p.total}…`, true, p.done / p.total); },
   renamed(s) {
     setStatus("");
     S.busy = false;
@@ -138,10 +138,14 @@ const handlers = {
     renderAll();
     if (!S.order.length) showScreen("start");
     if (s.message) toast(`ℹ️ ${esc(s.message)}`);
+    const metaText = s.meta ? `📝 metadata saved for ${s.meta} file${s.meta === 1 ? "" : "s"}` : "";
     if (s.done) {
       S.lastBatch = s.batch_id;
-      toast(`🎉 ${s.done} file${s.done === 1 ? "" : "s"} renamed${s.companions ? ` (+${s.companions} extra file${s.companions === 1 ? "" : "s"})` : ""}`,
+      toast(`🎉 ${s.done} file${s.done === 1 ? "" : "s"} renamed${s.companions ? ` (+${s.companions} extra file${s.companions === 1 ? "" : "s"})` : ""}${metaText ? ` · ${metaText}` : ""}`,
         { action: { label: "Undo", fn: () => undoBatch(s.batch_id) }, timeout: 10000 });
+    } else if (s.meta) {
+      S.lastBatch = s.batch_id;
+      toast(`📝 Metadata saved for ${s.meta} file${s.meta === 1 ? "" : "s"}`, { action: { label: "Undo", fn: () => undoBatch(s.batch_id) }, timeout: 10000 });
     }
     for (const e of s.errors || []) toast(`❌ ${esc(fileName(e.src))}: ${esc(e.message)}`, { timeout: 9000, action: { label: "Details", fn: openConsole } });
     for (const p of (s.problems || []).filter((p) => p.level === "conflict" || p.level === "error")) {
@@ -154,9 +158,14 @@ const handlers = {
 
 function historyLine(b) {
   const total = b.count + b.undone, n = `${total} file${total === 1 ? "" : "s"}`;
-  if (!b.undone) return `${n} renamed`;
-  if (!b.count) return `↩️ ${n} renamed, then put back`;
-  return `${n} renamed · ${b.undone} put back`;
+  const mt = (b.meta || 0) + (b.meta_undone || 0);
+  const meta = mt ? `📝 metadata for ${mt} file${mt === 1 ? "" : "s"}${b.meta_undone && !b.meta ? " (removed)" : ""}` : "";
+  let line;
+  if (!total) line = "";
+  else if (!b.undone) line = `${n} renamed`;
+  else if (!b.count) line = `↩️ ${n} renamed, then put back`;
+  else line = `${n} renamed · ${b.undone} put back`;
+  return [line, meta].filter(Boolean).join(" · ") || "Nothing changed";
 }
 const fileName = (p) => (p || "").split(/[\\/]/).pop();
 const nameOf = (id) => (S.items.get(id) || {}).name || "A file";
@@ -541,8 +550,9 @@ async function doRename() {
   if (S.settings.safety.confirm_before_rename) {
     const skipped = (includeAmber ? 0 : c.amber) + c.red;
     const action = { move: "renamed and moved", copy: "copied", hardlink: "hardlinked", symlink: "symlinked" }[S.settings.library.action] || "renamed";
+    const meta = S.settings.metadata.enabled ? ` 📝 Also saving: ${metaSummary()}.` : "";
     confirmModal(`✏️ Rename ${n} file${n === 1 ? "" : "s"}?`,
-      `${n} file${n === 1 ? " will be" : "s will be"} ${action}.${skipped ? ` ${skipped} file${skipped === 1 ? " is" : "s are"} skipped.` : ""} You can undo this from History.`,
+      `${n} file${n === 1 ? " will be" : "s will be"} ${action}.${skipped ? ` ${skipped} file${skipped === 1 ? " is" : "s are"} skipped.` : ""}${meta} You can undo this from History.`,
       `Rename ${n}`, go);
   } else go();
 }
@@ -630,6 +640,76 @@ function selectRow(section, key, label, desc, opts) {
 }
 const soon = (text) => `<div class="card pad"><h4>🚧 Coming in a later version</h4><div class="desc" style="margin-top:0">${esc(text)}</div></div>`;
 
+const SERVER_NAMES = { plex: "Plex", jellyfin: "Jellyfin", emby: "Emby", kodi: "Kodi", none: "any player" };
+const META_ITEMS = [
+  ["poster", "Poster", "🖼️", "The film or show poster, saved next to the video."],
+  ["logo", "Logo", "🏷️", "The title logo, where TheMovieDB has one."],
+  ["nfo", ".nfo info file", "📝", "Title, plot, cast, director, ratings and more, for Jellyfin, Emby and Kodi."],
+  ["season_posters", "Season posters", "📺", "A poster for each TV season."],
+  ["episode_thumbs", "Episode thumbnails", "🎞️", "A still image for each TV episode."],
+];
+const INSIDE_ITEMS = [
+  ["tags", "Tags", "🏷️", "Title, year, plot, genres, director and cast, written into MKV and MP4 files."],
+  ["cover", "Embedded cover", "🖼️", "The poster stored inside the file, for players like VLC."],
+];
+
+function metaSummary() {
+  const md = S.settings.metadata;
+  if (!md.enabled) return "";
+  const names = [...META_ITEMS, ...INSIDE_ITEMS].filter(([k]) => md[k]).map(([, l]) => l.replace(" info file", ""));
+  return names.length ? names.join(", ") : "Nothing ticked";
+}
+
+function metadataPane() {
+  const md = S.settings.metadata, t = S.metaTools || {};
+  const server = S.settings.general.media_server;
+  const dim = md.enabled ? "" : " dim";
+  const plexNote = server === "plex" ? `<div class="card pad note"><div>💡 <b>Plex tip:</b> Plex reads posters, logos and thumbnails when <i>Use local assets</i> is on in your library's settings. It ignores .nfo files, and only reads tags from MP4 files.</div></div>` : "";
+  const tools = `<div class="card pad"><h4>🧰 Tools</h4><div class="desc" style="margin:0">
+      ${t.mkvpropedit ? "✅" : "❌"} mkvpropedit (MKV files)${t.mkvpropedit ? "" : " · not found, so tags can't go into MKV files"}<br>
+      ${t.mutagen ? "✅" : "❌"} mutagen (MP4 files)${t.mutagen ? "" : " · missing, so tags can't go into MP4 files"}</div></div>`;
+  return `
+    <div class="card">${sw("metadata", "enabled", "Save metadata", "Off by default. When on, Rennix also saves the items ticked below whenever you rename. Files that are already named correctly get them too.", "📝")}</div>
+    <div class="card pad${dim}"><h4>Next to the video</h4><div class="desc">Small files saved beside your videos, named to suit ${esc(SERVER_NAMES[server] || "your player")}. The video itself isn't touched.</div></div>
+    <div class="card${dim}">${META_ITEMS.map(([k, l, e, d]) => sw("metadata", k, l, d, e)).join("")}</div>
+    <div class="card pad${dim}"><h4>Inside the video file</h4><div class="desc">Only the file's header changes; the video and audio are never rewritten. Every write is checked afterwards and can be undone.</div></div>
+    <div class="card${dim}">${INSIDE_ITEMS.map(([k, l, e, d]) => sw("metadata", k, l, d, e)).join("")}</div>
+    <div class="card${dim}">${sw("metadata", "max_safety", "Maximum safety", "Always write to a copy first, check it, then swap it in. Slower, and needs free space the size of the file.", "🛡️")}
+      ${sw("metadata", "replace_existing", "Replace existing", "Replace posters, .nfo files and covers that are already there. Off keeps yours.", "♻️")}</div>
+    ${plexNote}${tools}`;
+}
+
+function openMetaQuick() {
+  const draw = () => {
+    const md = S.settings.metadata;
+    return `<div class="modal-head"><h2>📝 Metadata</h2><button class="btn small primary" id="mq-done">${icon("check")}Done</button></div>
+      <div class="modal-body pad" style="flex-direction:column">
+        <div class="card">${sw("metadata", "enabled", "Save metadata", "Saved alongside every rename.", "📝")}</div>
+        <div class="card${md.enabled ? "" : " dim"}">${[...META_ITEMS, ...INSIDE_ITEMS].map(([k, l, e]) => sw("metadata", k, l, k === "tags" || k === "cover" ? "Inside the video file" : "Next to the video", e)).join("")}</div>
+        <button class="btn small" id="mq-more">${icon("gear")}More in Settings</button></div>`;
+  };
+  const o = openModal(draw(), "narrow");
+  const wire = () => {
+    $("#mq-done", o).onclick = closeModal;
+    $("#mq-more", o).onclick = () => { closeModal(); openSettings("metadata"); };
+    for (const b of $$("[data-sw]", o)) b.onclick = async () => {
+      const [sec, key] = b.dataset.sw.split(".");
+      await saveSettings({ [sec]: { [key]: !S.settings[sec][key] } });
+      o.innerHTML = draw(); wire(); renderMetaButton();
+    };
+  };
+  wire();
+}
+
+function renderMetaButton() {
+  const b = $("#btn-meta");
+  if (!b) return;
+  const on = S.settings.metadata.enabled;
+  b.classList.toggle("on", on);
+  b.querySelector("span").textContent = on ? "Metadata on" : "Metadata";
+  b.setAttribute("data-tip", tip("📝 Save metadata", on ? `Saving: ${metaSummary()}.` : "Off. Click to save posters, .nfo files or tags with each rename.", "Click to choose what's saved."));
+}
+
 function settingsPane(sec) {
   const s = S.settings;
   const fmtOpts = Object.keys(S.formats).map((n) => [n, n]);
@@ -677,7 +757,7 @@ function settingsPane(sec) {
       ${sw("safety", "skip_amber", "Always skip amber files", "Files Rennix isn't sure about are left alone unless you tick “Include amber”.", "⚠️")}
       ${selectRow("safety", "history_days", "Keep undo history for", "Older batches are cleared automatically.", [[30, "30 days"], [365, "1 year"], [0, "Forever"]])}</div>`;
     case "notifications": return `<div class="card">${sw("notifications", "on_finish", "Tell me when a batch finishes", "A message pops up when renaming is done.", "🔔")}</div>`;
-    case "metadata": return soon("Writing cast, director, plot and posters into your files (and .nfo files beside them) arrives in version 2.");
+    case "metadata": return metadataPane();
     case "integrations": return soon("Right-click “Rename with Rennix” in Explorer, and refreshing Plex or Jellyfin after renaming.");
     case "network": return `<div class="card">${sw("network", "offline", "Offline mode", "Only use matches Rennix has already looked up.", "✈️")}
       <div class="srow"><div><div class="lbl">🌐 Proxy</div><div class="d">Only if your network needs one, e.g. http://host:8080</div></div><input type="text" data-text="network.proxy" value="${esc(s.network.proxy)}" style="width:240px"></div></div>`;
@@ -724,16 +804,17 @@ function drawPane() {
   const pane = $("#spane");
   if (!pane) return;
   const [, e, n] = SECTIONS.find((x) => x[0] === settingsSection);
-  const resettable = !["about", "metadata", "integrations", "advanced"].includes(settingsSection);
+  const resettable = !["about", "integrations", "advanced"].includes(settingsSection);
   pane.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap"><h3>${e} ${n}</h3>
     ${resettable ? `<button class="btn small" id="reset-sec">${icon("history")}Reset to defaults</button>` : ""}</div>${settingsPane(settingsSection)}`;
-  $("#reset-sec")?.addEventListener("click", async () => { S.settings = await api.reset_settings(settingsSection); applyLook(); fillFormatSelects(); drawPane(); });
+  $("#reset-sec")?.addEventListener("click", async () => { S.settings = await api.reset_settings(settingsSection); applyLook(); fillFormatSelects(); drawPane(); renderMetaButton(); });
   for (const b of $$("[data-sw]", pane)) b.onclick = async () => {
     const [sec, key] = b.dataset.sw.split(".");
     await saveSettings({ [sec]: { [key]: !S.settings[sec][key] } });
     b.setAttribute("aria-checked", String(!!S.settings[sec][key]));
     if (key === "show_console") setConsoleVisible(S.settings.general.show_console);
     if (sec === "library" || sec === "naming") refreshPreviews();
+    if (sec === "metadata") { drawPane(); renderMetaButton(); }
   };
   for (const b of $$("[data-choice]", pane)) b.onclick = async () => {
     const [sec, key] = b.dataset.choice.split(".");
@@ -915,8 +996,10 @@ async function openHistory() {
   const o = openModal(`<div class="modal-head"><h2>${icon("history", "ic lg")}Rename history</h2><button class="btn small" id="h-close">Close</button></div>
     <div class="modal-body" style="flex-direction:column">${batches.length ? batches.map((b) => `
       <div class="batch"><div class="top"><div><b>${esc(new Date(b.created).toLocaleString())}</b><div class="muted" style="font-size:13px">${historyLine(b)}</div></div>
-      ${b.count > b.undone ? `<button class="btn small" data-undo="${esc(b.id)}" data-tip="${tip("↩️ Undo this batch", "Puts every file back exactly where it was.")}">${icon("undo")}Undo</button>` : `<span class="muted">✅ Undone</span>`}</div>
-      <details><summary>Show files</summary>${b.ops.filter((x) => x.kind === "video").map((x) => `<div class="op${x.state === "undone" ? " undone" : ""}">${esc(fileName(x.src))} → ${esc(x.dst)}</div>`).join("")}</details></div>`).join("")
+      ${b.can_undo ? `<button class="btn small" data-undo="${esc(b.id)}" data-tip="${tip("↩️ Undo this batch", "Puts every file back exactly where it was.")}">${icon("undo")}Undo</button>` : `<span class="muted">✅ Undone</span>`}</div>
+      <details><summary>Show files</summary>${b.ops.filter((x) => x.kind === "video" || ((x.kind === "meta" || x.kind === "tags") && x.state !== "failed" && x.state !== "skipped")).map((x) => x.kind === "video"
+        ? `<div class="op${x.state === "undone" ? " undone" : ""}">${esc(fileName(x.src))} → ${esc(x.dst)}</div>`
+        : `<div class="op meta${x.state === "undone" ? " undone" : ""}">${x.kind === "tags" ? "🏷️ Tags written into" : "📝 Saved"} ${esc(x.kind === "tags" ? fileName(x.dst) : x.dst)}</div>`).join("")}</details></div>`).join("")
       : `<div style="padding:28px" class="muted">🕘 Nothing renamed yet. Every rename will appear here, ready to undo.</div>`}</div>`, "narrow");
   $("#h-close", o).onclick = closeModal;
   for (const b of $$("[data-undo]", o)) b.onclick = async () => { await undoBatch(b.dataset.undo); openHistory(); };
@@ -1113,6 +1196,7 @@ async function init() {
   api = window.pywebview.api;
   const st = await api.get_state();
   S.settings = st.settings; S.formats = st.formats; S.tokens = st.tokens; S.version = st.version; S.stats = st.stats; S.platform = st.platform;
+  S.metaTools = st.metadata_tools || {};
   applyLook();
   setConsoleVisible(S.settings.general.show_console !== false);
   S.view = S.settings.general.view || "list";
@@ -1120,6 +1204,8 @@ async function init() {
   setMode(S.settings.general.default_mode || "auto");
   fillFormatSelects();
   $("#chk-amber").checked = !S.settings.safety.skip_amber;
+  renderMetaButton();
+  $("#btn-meta").onclick = openMetaQuick;
   for (const it of st.items || []) { S.items.set(it.id, it); S.order.push(it.id); }
   if (S.order.length) { showScreen("main"); renderAll(); }
   refreshStats();

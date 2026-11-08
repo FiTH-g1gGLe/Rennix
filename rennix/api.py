@@ -30,6 +30,7 @@ from .identify import Identified, Identifier
 from .naming import (PRESETS, SAMPLE_FACTS, TOKENS, FormatError, Formats, facts_for,
                      format_to_text, parse_format, parts_from_json, parts_to_json, render,
                      validate)
+from . import metadata
 from .renamer import Renamer, build_plan
 from .scanner import VIDEO_EXTS, scan
 from .store import Cache, Learned
@@ -131,13 +132,27 @@ class Api:
             "mediainfo": mediainfo.available(),
             "pending_journal": self.pending_journal(),
             "stats": self._learned.stats(),
+            "metadata_tools": self.metadata_status(),
             "platform": sys.platform,
             "items": [self._item_dict(self._items[i]) for i in self._order if i in self._items],
         }
 
     def save_settings(self, changes: dict) -> dict:
-        self._settings.update(changes or {})
+        changes = dict(changes or {})
+        md = changes.get("metadata") or {}
+        if md.get("enabled") and not self._settings.get("metadata", "configured", False):
+            # first time the main switch goes on: tick what suits the user's media server
+            server = (changes.get("general") or {}).get("media_server") or self._settings.get("general", "media_server", "plex")
+            changes["metadata"] = {**metadata.preset_for(server), **md, "configured": True}
+        self._settings.update(changes)
         return self._settings.data
+
+    def metadata_status(self) -> dict:
+        """What the Metadata settings page needs to know about the tools."""
+        from . import embed
+        tool = embed.find_mkvpropedit(self._settings.get("metadata", "mkvpropedit", ""))
+        return {"mkvpropedit": bool(tool), "mkvpropedit_path": tool or "", "mutagen": embed.have_mutagen(),
+                "presets": metadata.PRESETS}
 
     def reset_settings(self, section: str) -> dict:
         self._settings.reset_section(section)
@@ -318,21 +333,48 @@ class Api:
             plan = build_plan(items, self._formats, self._settings.data, include_amber=include_amber,
                               only_ids=set(ids) if ids else None)
             total = len([o for o in plan.ops if o.kind == "video"])
-            if total == 0:
+            meta_files = 0
+            if self._settings.get("metadata", "enabled", False):
+                status = lambda text: self._emit("status", {"text": text})
+                try:
+                    client = self._client()
+                    meta_files = metadata.plan_ops(plan, items, self._settings.data, client, progress=status)
+                    if meta_files:
+                        metadata.prefetch(plan, client, self._paths.cache / "staging", progress=status)
+                except Exception as exc:
+                    log_event(log, logging.ERROR, "RNX-M009", f"Metadata couldn't be prepared: {exc}", exc)
+                    plan.ops = [o for o in plan.ops if o.kind not in ("meta", "tags")]
+                    plan.problems.append({"file_id": "", "level": "error",
+                                          "message": "Metadata couldn't be prepared, so only the renames were done."})
+                    meta_files = 0
+            if total == 0 and not meta_files:
                 self._emit("renamed", {"done": 0, "failed": 0, "companions": 0, "errors": [],
                                        "problems": plan.problems, "message": "Nothing to rename."})
                 return
             count = {"n": 0}
+
+            meta_total = len([o for o in plan.ops if o.kind in ("meta", "tags") and o.state == "pending"])
+            mcount = {"n": 0}
 
             def progress(op):
                 if op.kind == "video":
                     count["n"] += 1
                     self._emit("rename_progress", {"done": count["n"], "total": total,
                                                    "file_id": op.file_id, "state": op.state})
+                elif op.kind in ("meta", "tags"):
+                    mcount["n"] += 1
+                    self._emit("rename_progress", {"done": mcount["n"], "total": meta_total, "meta": True,
+                                                   "file_id": op.file_id, "state": op.state})
 
-            label = f"{total} file{'s' if total != 1 else ''}"
+            label = f"{total} file{'s' if total != 1 else ''}" if total else f"Metadata for {meta_files}"
             summary = Renamer(self._paths, self._settings.data).execute(plan, progress, label=label)
-            done_ids = {o.file_id for o in plan.ops if o.kind == "video"} - {e["file_id"] for e in summary["errors"]}
+            if meta_files and not self._paths.journal_file.exists():
+                import shutil
+                shutil.rmtree(self._paths.cache / "staging", ignore_errors=True)
+            failed_ids = {e["file_id"] for e in summary["errors"]}
+            done_ids = {o.file_id for o in plan.ops if o.kind == "video"} - failed_ids
+            if meta_files:   # files that only got metadata (already named correctly) leave the list too
+                done_ids |= {o.file_id for o in plan.ops if o.kind in ("meta", "tags") and o.state == "done"} - failed_ids
             for i in done_ids:
                 self._items.pop(i, None)
             self._order = [i for i in self._order if i in self._items]
