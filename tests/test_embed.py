@@ -53,7 +53,7 @@ def media(tmp_path_factory):
     ff(*src, "-i", str(srt), "-i", str(chapters), "-t", "12", "-map", "0:v", "-map", "1:a", "-map", "2:a", "-map", "3:s",
        "-map_metadata", "4", "-map_chapters", "4", "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac",
        "-c:s", "srt", str(d / "film.mkv"))
-    ff(*src[:4], "-t", "12", "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", str(d / "end.mp4"))
+    ff(*src[:8], "-t", "12", "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", str(d / "end.mp4"))
     ff("-i", str(d / "end.mp4"), "-c", "copy", "-movflags", "+faststart", str(d / "front.mp4"))
     return d
 
