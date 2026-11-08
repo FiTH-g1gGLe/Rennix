@@ -53,7 +53,7 @@ def test_sort_into_library_and_undo(tmp_path):
     assert files_under(tmp_path / "TV") == ["Breaking Bad (2008)/Season 02/Breaking Bad (2008) - S02E05 - Breakage.mkv"]
     assert not (dl / "sub").exists()                       # empty folder tidied
     undo = r.undo(out["batch_id"])
-    assert undo["undone"] == 3 and not undo["errors"]
+    assert undo["undone"] == 3 and undo["videos"] == 3 and not undo["errors"]
     assert files_under(dl) == before
     assert not (tmp_path / "Movies").exists()              # folders Rennix made are removed again
 
@@ -193,3 +193,11 @@ def test_case_only_rename(tmp_path):
     assert files_under(dl) == ["The Matrix (1999).en.srt", "The Matrix (1999).mkv"]
     r.undo(out["batch_id"])
     assert files_under(dl) == ["the matrix (1999).en.srt", "the matrix (1999).mkv"]
+
+
+def test_undo_reports_videos_and_stats_go_down(tmp_path):
+    from rennix.store import Learned
+    db = Learned(tmp_path / "l.db")
+    db.bump("renamed", 3)
+    db.bump("renamed", -5)
+    assert db.stats()["renamed"] == 0

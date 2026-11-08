@@ -116,8 +116,8 @@ class Learned(_DB):
     def bump(self, name: str, by: int = 1) -> None:
         self.execute(
             "INSERT INTO stats (name, value) VALUES (?, ?) "
-            "ON CONFLICT(name) DO UPDATE SET value = value + ?",
-            (name, by, by),
+            "ON CONFLICT(name) DO UPDATE SET value = MAX(0, value + ?)",
+            (name, max(0, by), by),
         )
 
     def stats(self) -> dict:

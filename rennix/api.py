@@ -391,7 +391,10 @@ class Api:
 
     def undo(self, batch_id: str, op_ids: list[str] | None = None) -> dict:
         try:
-            return Renamer(self._paths, self._settings.data).undo(batch_id, op_ids)
+            r = Renamer(self._paths, self._settings.data).undo(batch_id, op_ids)
+            if r.get("videos"):
+                self._learned.bump("renamed", -r["videos"])   # undone files no longer count as renamed
+            return r
         except (OSError, ValueError) as exc:
             return {"undone": 0, "errors": [{"message": f"Couldn't undo: {exc}"}]}
 

@@ -152,6 +152,12 @@ const handlers = {
   error(d) { setStatus(""); S.busy = false; toast(`❌ ${esc(d.message)}`, { timeout: 10000, action: { label: "Details", fn: openConsole } }); },
 };
 
+function historyLine(b) {
+  const total = b.count + b.undone, n = `${total} file${total === 1 ? "" : "s"}`;
+  if (!b.undone) return `${n} renamed`;
+  if (!b.count) return `↩️ ${n} renamed, then put back`;
+  return `${n} renamed · ${b.undone} put back`;
+}
 const fileName = (p) => (p || "").split(/[\\/]/).pop();
 const nameOf = (id) => (S.items.get(id) || {}).name || "A file";
 
@@ -908,8 +914,8 @@ async function openHistory() {
   const batches = await api.history();
   const o = openModal(`<div class="modal-head"><h2>${icon("history", "ic lg")}Rename history</h2><button class="btn small" id="h-close">Close</button></div>
     <div class="modal-body" style="flex-direction:column">${batches.length ? batches.map((b) => `
-      <div class="batch"><div class="top"><div><b>${esc(new Date(b.created).toLocaleString())}</b><div class="muted" style="font-size:13px">${b.count} file${b.count === 1 ? "" : "s"} renamed${b.undone ? ` · ${b.undone} undone` : ""}</div></div>
-      ${b.count > b.undone ? `<button class="btn small" data-undo="${esc(b.id)}" data-tip="${tip("↩️ Undo this batch", "Puts every file back exactly where it was.")}">${icon("undo")}Undo</button>` : `<span class="muted">Undone</span>`}</div>
+      <div class="batch"><div class="top"><div><b>${esc(new Date(b.created).toLocaleString())}</b><div class="muted" style="font-size:13px">${historyLine(b)}</div></div>
+      ${b.count > b.undone ? `<button class="btn small" data-undo="${esc(b.id)}" data-tip="${tip("↩️ Undo this batch", "Puts every file back exactly where it was.")}">${icon("undo")}Undo</button>` : `<span class="muted">✅ Undone</span>`}</div>
       <details><summary>Show files</summary>${b.ops.filter((x) => x.kind === "video").map((x) => `<div class="op${x.state === "undone" ? " undone" : ""}">${esc(fileName(x.src))} → ${esc(x.dst)}</div>`).join("")}</details></div>`).join("")
       : `<div style="padding:28px" class="muted">🕘 Nothing renamed yet. Every rename will appear here, ready to undo.</div>`}</div>`, "narrow");
   $("#h-close", o).onclick = closeModal;

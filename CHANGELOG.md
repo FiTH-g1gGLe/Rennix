@@ -2,6 +2,12 @@
 
 All notable changes to Rennix are listed here.
 
+## 0.1.5-alpha (November 2026)
+
+### Fixed
+- Rename history now reads clearly after an undo ("3 files renamed, then put back") instead of "0 files renamed · 3 undone".
+- Undone files no longer count towards "files renamed so far".
+
 ## 0.1.4-alpha (November 2026)
 
 ### Fixed

@@ -512,7 +512,7 @@ class Renamer:
             wanted |= {o["id"] for o in batch["ops"] if o["file_id"] in fids}
         for d in batch.get("removed_dirs", []):
             Path(d).mkdir(parents=True, exist_ok=True)
-        undone, errors = 0, []
+        undone, videos, errors = 0, 0, []
         for od in reversed(batch["ops"]):
             if od["state"] != "done" or (wanted and od["id"] not in wanted):
                 continue
@@ -523,6 +523,7 @@ class Renamer:
                         os.rename(dst, src)         # undo a case-only rename
                         od["state"] = "undone"
                         undone += 1
+                        videos += od["kind"] == "video"
                         continue
                     if src.exists():
                         raise FileExistsError(str(src))
@@ -533,6 +534,7 @@ class Renamer:
                         os.remove(dst)
                 od["state"] = "undone"
                 undone += 1
+                videos += od["kind"] == "video"
                 for d in reversed(od.get("created_dirs") or []):
                     try:
                         Path(d).rmdir()
@@ -546,4 +548,4 @@ class Renamer:
                                "message": friendly("RNX-U001", "Couldn't put a file back: " + friendly(code))})
         atomic_write_json(f, batch)
         log.info("Undo of batch %s: %s file(s) put back, %s problem(s)", batch_id, undone, len(errors))
-        return {"batch_id": batch_id, "undone": undone, "errors": errors}
+        return {"batch_id": batch_id, "undone": undone, "videos": videos, "errors": errors}
