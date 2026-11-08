@@ -476,6 +476,14 @@ class Api:
                 if any(v > 1 for v in names.values()):
                     issues.append({"level": "warning",
                                    "message": "Two of your loaded files would get the same name with this format."})
+                used = text.lower()
+                hdr_sample = dict(SAMPLE_FACTS["movie"], title="Dune: Part Two", year=2024, tmdb_id=693134,
+                                  resolution="2160p", source="BluRay", hdr="Dolby Vision HDR10", edition="")
+                if kind == "movie" and "{hdr" in used and not any(facts_for(it).get("hdr") for it in mine):
+                    issues.append({"level": "info",
+                                   "message": "None of your loaded files are HDR, so {hdr} is empty for them. "
+                                              "The last example shows an HDR film. Use {hdr:sdr} to write SDR on normal video."})
+                    examples.append({"old": "(example HDR film)", "new": render(text, hdr_sample, ".mkv")})
             else:
                 samples = [SAMPLE_FACTS[kind]]
                 if kind == "episode":

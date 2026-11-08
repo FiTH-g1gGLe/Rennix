@@ -65,18 +65,21 @@ def probe(path: str | Path) -> dict:
             out["resolution"] = _resolution_label(out["width"], out["height"])
             fmt = (track.format or "").upper()
             out["video_codec"] = {"AVC": "H.264", "HEVC": "HEVC", "AV1": "AV1"}.get(fmt, track.format or "")
-            hdr = " ".join(filter(None, [track.hdr_format, track.hdr_format_compatibility,
-                                         track.transfer_characteristics]))
+            hdr = " ".join(str(x) for x in filter(None, [
+                getattr(track, "hdr_format", None), getattr(track, "hdr_format_commercial", None),
+                getattr(track, "hdr_format_compatibility", None), getattr(track, "hdr_format_profile", None),
+                getattr(track, "transfer_characteristics", None)]))
             flags = []
-            if "Dolby Vision" in hdr:
+            if "Dolby Vision" in hdr or "dvhe" in hdr or "dvh1" in hdr:
                 flags.append("Dolby Vision")
-            if "HDR10+" in hdr:
+            if "HDR10+" in hdr or "SMPTE ST 2094" in hdr:
                 flags.append("HDR10+")
-            elif "HDR10" in hdr or "PQ" in hdr or "SMPTE ST 2084" in hdr:
+            elif "HDR10" in hdr or "PQ" in hdr or "SMPTE ST 2084" in hdr or "SMPTE ST 2086" in hdr:
                 flags.append("HDR10")
-            elif "HLG" in hdr:
+            elif "HLG" in hdr or "ARIB STD-B67" in hdr:
                 flags.append("HLG")
             out["hdr"] = flags
+            out["hdr_checked"] = True   # the video was read, so "no flags" really means SDR
         elif tt == "Audio":
             if "audio" not in out:
                 commercial = track.commercial_name or track.format or ""

@@ -2,6 +2,13 @@
 
 All notable changes to Rennix are listed here.
 
+## 0.1.4-alpha (November 2026)
+
+### Fixed
+- `{hdr}` now detects HDR10, HDR10+, HLG and Dolby Vision more reliably from the video itself, and still falls back to the file name.
+- New option `{hdr:sdr}` writes **SDR** for normal video instead of leaving it empty.
+- The format editor explains when `{hdr}` is empty because none of your loaded files are HDR, and adds an example HDR film to the preview so you can see what it does.
+
 ## 0.1.3-alpha (November 2026)
 
 ### Added

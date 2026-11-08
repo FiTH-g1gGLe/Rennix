@@ -869,8 +869,9 @@ async function checkFormat() {
     $("#fe-text").value = fe.text;
     checkFormat();
   };
-  $("#fe-issues").innerHTML = r.issues.length ? r.issues.map((i) => `<div class="issue ${i.level}">${i.level === "error" ? "❌" : "⚠️"} ${esc(i.message)}</div>`).join("")
-    : `<div class="issue ok">✅ Looks good. No name clashes.</div>`;
+  const real = r.issues.filter((i) => i.level !== "info");
+  $("#fe-issues").innerHTML = r.issues.map((i) => `<div class="issue ${i.level}">${i.level === "error" ? "❌" : i.level === "info" ? "💡" : "⚠️"} ${esc(i.message)}</div>`).join("")
+    + (real.length ? "" : `<div class="issue ok">✅ Looks good. No name clashes.</div>`);
   $("#fe-examples").innerHTML = r.examples.map((x) => `<div class="ex"><div class="o">${esc(x.old)}</div><div class="n">${esc(x.new)}</div></div>`).join("") || `<div class="ex muted">Fix the problems above to see a preview.</div>`;
 }
 

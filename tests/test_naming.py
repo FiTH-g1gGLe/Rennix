@@ -126,3 +126,21 @@ def test_saved_formats(tmp_path):
         again.save("Plex", movie="{title}")
     again.delete("Mine")
     assert "Mine" not in Formats(tmp_path / "formats.json").all()
+
+
+def test_hdr_token():
+    assert render("{title}[ {hdr}]", mv(hdr="Dolby Vision HDR10"), "") == "The Matrix Dolby Vision HDR10"
+    assert render("{title}[ {hdr}]", mv(hdr=""), "") == "The Matrix"
+    assert render("{title} {hdr:sdr}", mv(hdr="", sdr_known=True), "") == "The Matrix SDR"
+    assert render("{title}[ {hdr:sdr}]", mv(hdr="", sdr_known=False), "") == "The Matrix"   # not read: don't guess
+    assert render("{title} {hdr:sdr}", mv(hdr="HDR10", sdr_known=False), "") == "The Matrix HDR10"
+
+
+def test_hdr_from_file_name_reaches_the_name():
+    from types import SimpleNamespace
+    from rennix.naming import facts_for
+    from rennix.parse import parse_name
+    from rennix.identify import Match
+    p = parse_name("Dune.2021.2160p.UHD.BluRay.x265.HDR.DV.mkv", engine="builtin")
+    it = SimpleNamespace(match=Match(kind="movie", tmdb_id=1, title="Dune", year=2021), parsed=p, probe={})
+    assert "HDR" in facts_for(it)["hdr"] and "Dolby Vision" in facts_for(it)["hdr"]

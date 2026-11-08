@@ -219,6 +219,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); outline
 .issue.error { background: var(--red-soft); color: var(--red-text); }
 .issue.warning { background: var(--amber-soft); color: var(--amber-text); }
 .issue.ok { background: var(--green-soft); color: var(--green-text); }
+.issue.info { background: var(--accent-soft); color: var(--text-2); }
 .ex { padding: 12px 16px; border-bottom: 1px solid var(--line); }
 .ex:last-child { border-bottom: 0; }
 .ex .o { font-family: var(--mono); font-size: 12.5px; color: var(--muted); }

@@ -43,7 +43,7 @@ TOKENS: list[dict] = [
     {"name": "resolution", "label": "Resolution", "kinds": "both", "help": "🖥️ 2160p, 1080p, 720p…", "example": "1080p"},
     {"name": "source", "label": "Source", "kinds": "both", "help": "💽 BluRay, WEB-DL, HDTV…", "example": "BluRay"},
     {"name": "video_codec", "label": "Video codec", "kinds": "both", "help": "🎞️ H.264, HEVC, AV1…", "example": "HEVC"},
-    {"name": "hdr", "label": "HDR", "kinds": "both", "help": "🌈 HDR10, HDR10+, Dolby Vision. Empty for normal video.", "example": "HDR10"},
+    {"name": "hdr", "label": "HDR", "kinds": "both", "help": "🌈 HDR10, HDR10+, HLG or Dolby Vision, read from the video itself (or the file name). Empty for normal SDR video. Add the option :sdr, like {hdr:sdr}, to write SDR instead.", "example": "Dolby Vision HDR10"},
     {"name": "audio", "label": "Audio", "kinds": "both", "help": "🔊 Atmos, DTS, 5.1…", "example": "Atmos 7.1"},
     {"name": "languages", "label": "Language", "kinds": "both", "help": "🗣️ Audio languages, like ENG, FRE.", "example": "ENG"},
     {"name": "subtitle_languages", "label": "Subtitle languages", "kinds": "both", "help": "💬 Built-in subtitle languages.", "example": "ENG, FRE"},
@@ -52,7 +52,7 @@ TOKENS: list[dict] = [
 TOKEN_NAMES = {t["name"] for t in TOKENS}
 ALIASES = {"n": "title", "y": "year", "s": "season", "e": "episode", "t": "episode_title",
            "name": "title", "series": "show", "sxe": "s00e00", "ep_title": "episode_title"}
-OPTIONS = {"00", "0", "000", "x", "short", "long", "upper", "lower", "title", "the",
+OPTIONS = {"00", "0", "000", "x", "short", "long", "upper", "lower", "title", "the", "sdr",
            "dots", "first"}
 
 PRESETS: dict[str, dict[str, str]] = {
@@ -303,6 +303,7 @@ def facts_for(identified: Any) -> dict:
         "source": p.source,
         "video_codec": probe.get("video_codec") or p.video_codec,
         "hdr": " ".join(hdr) if isinstance(hdr, list) else (hdr or ""),
+        "sdr_known": bool(probe.get("hdr_checked")) and not hdr,
         "audio": " ".join(audio_bits),
         "languages": _upper_langs(probe.get("audio_languages") or p.languages),
         "subtitle_languages": _upper_langs(probe.get("subtitle_languages")),
@@ -396,6 +397,10 @@ def _token_value(tok: Token, facts: dict) -> str:
         val = " & ".join(dict.fromkeys(titles))
     elif name in ("season", "absolute", "part"):
         val = _pad(facts.get(name), opts)
+    elif name == "hdr":
+        val = str(facts.get("hdr") or "")
+        if not val and "sdr" in opts and facts.get("sdr_known", True):
+            val = "SDR"
     else:
         raw = facts.get(name)
         val = "" if raw is None else str(raw)
