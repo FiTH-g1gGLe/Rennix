@@ -3,9 +3,12 @@
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 $index = (Invoke-WebRequest -UseBasicParsing "https://mkvtoolnix.download/windows/releases/").Content
-$versions = [regex]::Matches($index, 'href="(\d+\.\d+(?:\.\d+)?)/"') | ForEach-Object { $_.Groups[1].Value } |
+$versions = [regex]::Matches($index, '(?<![\d.])(\d{2,3}\.\d{1,2}(?:\.\d{1,2})?)/') | ForEach-Object { $_.Groups[1].Value } |
     Sort-Object { [version]$_ } -Unique
-if (-not $versions) { throw "Couldn't find any MKVToolNix versions" }
+if (-not $versions) {
+    Write-Host ($index.Substring(0, [Math]::Min(800, $index.Length)))
+    throw "Couldn't find any MKVToolNix versions"
+}
 $v = @($versions)[-1]
 Write-Host "MKVToolNix $v"
 Invoke-WebRequest -UseBasicParsing "https://mkvtoolnix.download/windows/releases/$v/mkvtoolnix-64-bit-$v.7z" -OutFile mkvtoolnix.7z
